@@ -1,10 +1,10 @@
-name: frontiersibase
+name: floorheight
 channels:
   - conda-forge
   - defaults
 dependencies:
   # Python
-  - python=3.10.13
+  - python=3.10
   - pip
   # Formatting and Linters
   - black
@@ -27,4 +27,21 @@ dependencies:
   - pandas
   - scikit-learn
   - scipy
-  # Project-Specific Packages 
+  # Google Street View
+  - requests
+  - pillow
+  - pydantic
+  - httpx
+  # testing dependencies
+  - pytest
+  - pytest-cov
+  - pytest-vcr
+  - pytest-asyncio
+  - isort
+  - black
+  - flake8
+  - mypy
+  - types-requests
+  - types-Pillow
+  - build
+  - twine
