@@ -1,0 +1,2 @@
+Requirement already satisfied: torch in c:\users\lliu\miniconda3\envs\floorheight\lib\site-packages (1.12.1)
+Requirement already satisfied: typing_extensions in c:\users\lliu\miniconda3\envs\floorheight\lib\site-packages (from torch) (4.12.2)
