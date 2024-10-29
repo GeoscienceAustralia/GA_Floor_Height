@@ -33,13 +33,15 @@ def calculate_horizontal_pixel(beta_house_deg, beta_yaw_deg, Wim):
     Returns:
         float: Horizontal pixel position px.
     """
-    delta_beta = beta_yaw_deg - beta_house_deg
+    # Normalize angles to [0, 360)
+    beta_house_deg = beta_house_deg % 360
+    beta_yaw_deg = beta_yaw_deg % 360
+    
+    # Calculate the shortest angle difference (mod 360 ensures wrapping)
+    delta_beta = (beta_house_deg - beta_yaw_deg + 180) % 360 - 180
     
     # Calculate the horizontal pixel px based on the bearing angle
-    if beta_yaw_deg <= beta_house_deg <= beta_yaw_deg + 180:
-        px = (Wim / 2) + (delta_beta / 180) * (Wim / 2)
-    else:
-        px = (Wim / 2) - (delta_beta / 180) * (Wim / 2)
+    px = (Wim / 2) + (delta_beta / 180) * (Wim / 2)
     
     return px
 
