@@ -1,5 +1,6 @@
 # functions to localise house and restore geometry
 import math
+import numpy as np
 def calculate_bearing(lat_c, lon_c, lat_house, lon_house):
     """
     Calculate the bearing angle β_house from the camera to the house
@@ -85,3 +86,60 @@ def localize_house_in_panorama(lat_c, lon_c, lat_house, lon_house, beta_yaw_deg,
         'horizontal_pixel_house': px_house,
         'horizontal_pixel_range_house':px_house_range,
     }
+
+# functions to extract segmentation features and calculate FFH
+def extract_feature_bottom(feature_mask):
+    """
+    Extracts the bottom pixels of a building feature (e.g. the door) from the feature mask.
+    
+    Parameters:
+    - feature_mask: 2D numpy array where pixels belonging to the feature are labeled (e.g., with 1), 
+                 and other pixels are labeled with 0.
+                 
+    Returns:
+    - bottom_pixels: Set of (px, py) tuples representing the bottom pixels of the feature.
+    """
+    bottom_pixels = set()  # Set to store bottom pixels of the feature
+    # Get horizontal pixel indices (Px_feature) where there are feature pixels
+    Px_feature = np.where(np.any(feature_mask == 1, axis=0))[0]
+    for px in Px_feature:
+        # Get vertical pixel indices (Py_feature(px)) for the given px where feature pixels are present
+        Py_door_px = np.where(feature_mask[:, px] == 1)[0]
+        # Get the maximum py (bottom-most pixel) for the current px
+        if Py_door_px.size > 0:
+            py = Py_door_px.max()
+            bottom_pixels.add((px, py))  # Add the bottom pixel (px, py) to the set
+    return bottom_pixels
+
+def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25,lower_crop=0.6):
+    """
+    Calculate the height difference between the camera and the feature bottom
+    
+    Parameters:
+    - bottom_pixels: Set of (px, py) tuples representing the bottom pixels of the feature
+    - depth_map: 2D numpy array where each value represents the depth at each pixel
+    - H_img: Height (number of rows) of the panorama image
+    - upper_crop: upper cropping proportions range
+    - lower_crop: lower cropping proportions range
+    
+    Returns:
+    - height_diff: height difference between the camera and the feature bottom
+    """
+    height_diff = []
+    # original height or image before cropping
+    H_img_orign=H_img/(lower_crop-upper_crop)
+
+    for (px, py) in bottom_pixels:
+        # original y coordinate before cropping
+        py_orign=py+H_img_orign*upper_crop
+        # Depth from the camera to the door bottom (ddb,c) from the depth map
+        ddb_c = depth_map[py, px]
+        # Pitch angle from the camera to the door bottom (Δθdb,c)
+        delta_theta_db_c=(H_img_orign/2.0-py_orign)*(180.0/H_img_orign)
+        # delta_theta_db_c = ((H_img/(lower_crop-upper_crop)) *(1.0/2-upper_crop) - py) * (180 / (H_img/(lower_crop-upper_crop)))
+        # Height difference between the camera and the door bottom (Δhdb,c)
+        delta_hdb_c = ddb_c * np.sin(np.radians(delta_theta_db_c))
+        height_diff.append(delta_hdb_c)
+
+    # Returning the average height difference if there are multiple feature bottom pixels
+    return np.mean(height_diff) if height_diff else None
