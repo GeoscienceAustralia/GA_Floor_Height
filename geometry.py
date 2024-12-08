@@ -88,32 +88,40 @@ def localize_house_in_panorama(lat_c, lon_c, lat_house, lon_house, beta_yaw_deg,
     }
 
 # functions to extract segmentation features and calculate FFH
-def extract_feature_bottom(feature_mask):
+def extract_feature_pixels(feature_mask, extract="bottom"):
     """
-    Extracts the bottom pixels of a building feature (e.g. the door) from the feature mask.
-    
+    Extracts the bottom or top pixels of a building feature (e.g., a door) from the feature mask.
+
     Parameters:
-    - feature_mask: 2D numpy array where pixels belonging to the feature are labeled (e.g., with 1), 
-                 and other pixels are labeled with 0.
-                 
+    - feature_mask: 2D numpy array where pixels belonging to the feature are labeled (e.g., with 1),
+                    and other pixels are labeled with 0.
+    - extract: str, specifies whether to extract "bottom" or "top" pixels. Defaults to "bottom".
+
     Returns:
-    - bottom_pixels: Set of (px, py) tuples representing the bottom pixels of the feature.
+    - feature_pixels: Set of (px, py) tuples representing the bottom or top pixels of the feature.
     """
-    bottom_pixels = set()  # Set to store bottom pixels of the feature
+    if extract not in {"bottom", "top"}:
+        raise ValueError("Invalid value for 'extract'. Must be 'bottom' or 'top'.")
+
+    feature_pixels = set()  # Set to store the extracted pixels of the feature
     # Get horizontal pixel indices (Px_feature) where there are feature pixels
     Px_feature = np.where(np.any(feature_mask == 1, axis=0))[0]
     for px in Px_feature:
         # Get vertical pixel indices (Py_feature(px)) for the given px where feature pixels are present
-        Py_door_px = np.where(feature_mask[:, px] == 1)[0]
-        # Get the maximum py (bottom-most pixel) for the current px
-        if Py_door_px.size > 0:
-            py = Py_door_px.max()
-            bottom_pixels.add((px, py))  # Add the bottom pixel (px, py) to the set
-    return bottom_pixels
+        Py_feature_px = np.where(feature_mask[:, px] == 1)[0]
+        if Py_feature_px.size > 0:
+            if extract == "bottom":
+                py = Py_feature_px.max()  # Get the maximum py (bottom-most pixel)
+            else:  # extract == "top"
+                py = Py_feature_px.min()  # Get the minimum py (top-most pixel)
+            feature_pixels.add((px, py))  # Add the pixel (px, py) to the set
+
+    return feature_pixels
+
 
 def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25,lower_crop=0.6):
     """
-    Calculate the height difference between the camera and the feature bottom
+    Calculate the height difference between feature bottom and camera and based on equirectangular projection of GSV pano images
     
     Parameters:
     - bottom_pixels: Set of (px, py) tuples representing the bottom pixels of the feature
@@ -137,9 +145,42 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
         # Pitch angle from the camera to the door bottom (Δθdb,c)
         delta_theta_db_c=(H_img_orign/2.0-py_orign)*(180.0/H_img_orign)
         # delta_theta_db_c = ((H_img/(lower_crop-upper_crop)) *(1.0/2-upper_crop) - py) * (180 / (H_img/(lower_crop-upper_crop)))
-        # Height difference between the camera and the door bottom (Δhdb,c)
+        # Height difference between door bottom and camera (Δhdb,c)
         delta_hdb_c = ddb_c * np.sin(np.radians(delta_theta_db_c))
         height_diff.append(delta_hdb_c)
 
     # Returning the average height difference if there are multiple feature bottom pixels
     return np.mean(height_diff) if height_diff else None
+
+# functions to restore geometry from RICS images
+def focal_length_to_pixels(focal_length_mm, sensor_width_mm, image_width_px):
+    """
+    Convert focal length from millimeters to pixels.
+    """
+    return (focal_length_mm * image_width_px) / sensor_width_mm
+
+def calculate_height_difference_perspective(y1, y2, Z1, Z2, focal_length_px, image_height_px):
+    """
+    Calculate the height difference between two points in an image with perspective projection.
+    
+    Parameters:
+    - y1, y2: Vertical pixel coordinates of the two points.
+    - Z1, Z2: Distances to the building points in real-world units (e.g., meters).
+    - focal_length_px: Focal length in pixels.
+    - image_height_px: Height of the image in pixels.
+    
+    Returns:
+    - Height difference in real-world units.
+    """
+    # Calculate the vertical distances from the principal point (assumed to be the center of the image)
+    y_center = image_height_px / 2
+    y1_prime = y1 - y_center
+    y2_prime = y2 - y_center
+    
+    # Apply the pinhole camera model for each point
+    Y1 = (y1_prime * Z1) / focal_length_px
+    Y2 = (y2_prime * Z2) / focal_length_px
+    
+    # Calculate the height difference
+    delta_Y = abs(Y2 - Y1)
+    return delta_Y
