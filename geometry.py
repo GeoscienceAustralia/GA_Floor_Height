@@ -136,18 +136,25 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
     height_diff = []
     # original height or image before cropping
     H_img_orign=H_img/(lower_crop-upper_crop)
+    # gap filling depth value
+    positive_depths=depth_map[depth_map > 0]
+    depth_gapfill=positive_depths.mean() if positive_depths.size > 0 else None
 
     for (px, py) in bottom_pixels:
         # original y coordinate before cropping
         py_orign=py+H_img_orign*upper_crop
         # Depth from the camera to the door bottom (ddb,c) from the depth map
         ddb_c = depth_map[py, px]
-        # Pitch angle from the camera to the door bottom (Δθdb,c)
-        delta_theta_db_c=(H_img_orign/2.0-py_orign)*(180.0/H_img_orign)
-        # delta_theta_db_c = ((H_img/(lower_crop-upper_crop)) *(1.0/2-upper_crop) - py) * (180 / (H_img/(lower_crop-upper_crop)))
-        # Height difference between door bottom and camera (Δhdb,c)
-        delta_hdb_c = ddb_c * np.sin(np.radians(delta_theta_db_c))
-        height_diff.append(delta_hdb_c)
+        # deal with abnormal depth value
+        if ddb_c<1:
+            ddb_c=depth_gapfill
+        if ddb_c is not None:
+            # Pitch angle from the camera to the door bottom (Δθdb,c)
+            delta_theta_db_c=(H_img_orign/2.0-py_orign)*(180.0/H_img_orign)
+            # delta_theta_db_c = ((H_img/(lower_crop-upper_crop)) *(1.0/2-upper_crop) - py) * (180 / (H_img/(lower_crop-upper_crop)))
+            # Height difference between door bottom and camera (Δhdb,c)
+            delta_hdb_c = ddb_c * np.sin(np.radians(delta_theta_db_c))
+            height_diff.append(delta_hdb_c)
 
     # Returning the average height difference if there are multiple feature bottom pixels
     return np.mean(height_diff) if height_diff else None
@@ -184,3 +191,44 @@ def calculate_height_difference_perspective(y1, y2, Z1, Z2, focal_length_px, ima
     # Calculate the height difference
     delta_Y = abs(Y2 - Y1)
     return delta_Y
+
+def estimate_FFH(elev_foundation_top=None, elev_foundation_bottom=None,elev_stairs_top=None, elev_stairs_bottom=None, 
+                 elev_frontdoor_bottom=None,elev_garagedoor_bottom=None, max_ffh=1.5, elev_camera=None):
+    '''
+    Calculate FFH using elevations of available features
+    '''
+    # determine ground elevation
+    elev_ground=None
+    if elev_garagedoor_bottom is not None:
+        elev_ground=elev_garagedoor_bottom
+    elif elev_stairs_bottom is not None:
+        elev_ground=elev_stairs_bottom
+    elif elev_foundation_bottom is not None:
+        elev_ground=elev_foundation_bottom
+    if elev_ground is None:
+        return None
+    
+    elev_floor=None
+    if elev_frontdoor_bottom is not None:
+        elev_floor=elev_frontdoor_bottom
+    elif elev_stairs_top is not None:
+        elev_floor=elev_stairs_top
+    elif elev_foundation_top is not None:
+        elev_floor=elev_foundation_top
+    if elev_floor is None:
+        return None
+    
+    # calculate FFH
+    FFH=elev_floor-elev_ground
+    # handle unreasonable height due to partial front door
+    if FFH<0 or FFH>=max_ffh:
+        if elev_floor==elev_frontdoor_bottom and not all(v is None for v in [elev_stairs_top,elev_foundation_top]):
+            elev_floor=max((v for v in [elev_stairs_top,elev_foundation_top] if v is not None), default=None)
+            FFH_new=elev_floor-elev_ground
+            if FFH>=0 and FFH_new<FFH:
+                FFH=FFH_new
+    if FFH<0:
+        FFH=0
+    if FFH>=max_ffh:
+        return None
+    return FFH
