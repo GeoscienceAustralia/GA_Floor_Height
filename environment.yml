@@ -21,11 +21,12 @@ dependencies:
   - shapely
   - rasterio
   # Data Science
+  - scipy
   - scikit-learn
 
-  # streetview requirments
-  - pydantic
-  - httpx
+  # # streetview requirments
+  # - pydantic
+  # - httpx
   # testing dependencies
   - pytest
   - pytest-cov
@@ -42,18 +43,18 @@ dependencies:
 
   # YOLOv5 requirements
 # Base ------------------------------------------------------------------------
-  - gitpython>=3.1.30
-  - matplotlib>=3.3
-  - numpy>=1.23.5
-  - opencv>=4.1.1
-  - pillow>=10.3.0
-  - psutil  # system resources
-  - PyYAML>=5.3.1
-  - requests>=2.32.2
-  - scipy>=1.4.1
-  - torchvision=0.13
-  - tqdm>=4.66.3
-  - ultralytics>=8.2.34  # https://ultralytics.com
+  # - gitpython>=3.1.30
+  # - matplotlib>=3.3
+  # - numpy>=1.23.5
+  # - opencv>=4.1.1
+  # - pillow>=10.3.0
+  # - psutil  # system resources
+  # - PyYAML>=5.3.1
+  # - requests>=2.32.2
+  # - scipy>=1.4.1
+  # - torchvision=0.13
+  # - tqdm>=4.66.3
+  # - ultralytics>=8.2.34  # https://ultralytics.com
 # - protobuf<=3.20.1  # https://github.com/ultralytics/yolov5/issues/8012
 
 # Logging ---------------------------------------------------------------------
@@ -64,6 +65,7 @@ dependencies:
 # Plotting --------------------------------------------------------------------
   - pandas>=1.1.4
   - seaborn>=0.11.0
+  - matplotlib
 
 # Export ----------------------------------------------------------------------
 # - coremltools>=6.0  # CoreML export
@@ -89,3 +91,5 @@ dependencies:
   - pip:
     - thop>=0.1.1  # FLOPs computation
     - torch>=1.8.0  # see https://pytorch.org/get-started/locally (recommended)
+    - streetlevel
+    - transformers
