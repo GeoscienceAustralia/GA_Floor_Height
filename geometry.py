@@ -1,6 +1,8 @@
 # functions to localise house and restore geometry
 import math
 import numpy as np
+from scipy.ndimage import label
+from shapely.geometry import Point, LineString
 def calculate_bearing(lat_c, lon_c, lat_house, lon_house):
     """
     Calculate the bearing angle β_house from the camera to the house
@@ -87,10 +89,41 @@ def localize_house_in_panorama(lat_c, lon_c, lat_house, lon_house, beta_yaw_deg,
         'horizontal_pixel_range_house':px_house_range,
     }
 
-# functions to extract segmentation features and calculate FFH
-def extract_feature_pixels(feature_mask, extract="bottom"):
+# # functions to extract segmentation features and calculate FFH
+# def extract_feature_pixels(feature_mask, extract="bottom"):
+#     """
+#     Extracts the bottom or top pixels of a building feature (e.g., a door) from the feature mask.
+
+#     Parameters:
+#     - feature_mask: 2D numpy array where pixels belonging to the feature are labeled (e.g., with 1),
+#                     and other pixels are labeled with 0.
+#     - extract: str, specifies whether to extract "bottom" or "top" pixels. Defaults to "bottom".
+
+#     Returns:
+#     - feature_pixels: Set of (px, py) tuples representing the bottom or top pixels of the feature.
+#     """
+#     if extract not in {"bottom", "top"}:
+#         raise ValueError("Invalid value for 'extract'. Must be 'bottom' or 'top'.")
+
+#     feature_pixels = set()  # Set to store the extracted pixels of the feature
+#     # Get horizontal pixel indices (Px_feature) where there are feature pixels
+#     Px_feature = np.where(np.any(feature_mask == 1, axis=0))[0]
+#     for px in Px_feature:
+#         # Get vertical pixel indices (Py_feature(px)) for the given px where feature pixels are present
+#         Py_feature_px = np.where(feature_mask[:, px] == 1)[0]
+#         if Py_feature_px.size > 0:
+#             if extract == "bottom":
+#                 py = Py_feature_px.max()  # Get the maximum py (bottom-most pixel)
+#             else:  # extract == "top"
+#                 py = Py_feature_px.min()  # Get the minimum py (top-most pixel)
+#             feature_pixels.add((px, py))  # Add the pixel (px, py) to the set
+
+#     return feature_pixels
+
+def extract_feature_pixels_lowest_region(feature_mask, extract="bottom"):
     """
-    Extracts the bottom or top pixels of a building feature (e.g., a door) from the feature mask.
+    Extracts the bottom or top pixels of the lowest connected region (by bottom-most extent)
+    from the feature mask.
 
     Parameters:
     - feature_mask: 2D numpy array where pixels belonging to the feature are labeled (e.g., with 1),
@@ -98,23 +131,47 @@ def extract_feature_pixels(feature_mask, extract="bottom"):
     - extract: str, specifies whether to extract "bottom" or "top" pixels. Defaults to "bottom".
 
     Returns:
-    - feature_pixels: Set of (px, py) tuples representing the bottom or top pixels of the feature.
+    - feature_pixels: Set of (px, py) tuples representing the bottom or top pixels 
+                      of the lowest connected region of the feature.
     """
     if extract not in {"bottom", "top"}:
         raise ValueError("Invalid value for 'extract'. Must be 'bottom' or 'top'.")
 
-    feature_pixels = set()  # Set to store the extracted pixels of the feature
-    # Get horizontal pixel indices (Px_feature) where there are feature pixels
-    Px_feature = np.where(np.any(feature_mask == 1, axis=0))[0]
+    # Label connected regions in the feature mask
+    labeled_mask, num_features = label(feature_mask)
+
+    lowest_region_id = None
+    lowest_bottom = None  # Track the bottom-most extent of the lowest region
+
+    # Identify the lowest region based on bottom-most extent
+    for feature_id in range(1, num_features + 1):
+        region_mask = (labeled_mask == feature_id)
+        vertical_indices = np.where(region_mask)[0]  # Get vertical positions (row indices)
+
+        if vertical_indices.size > 0:
+            bottom_position = vertical_indices.max()  # Bottom-most pixel in this region
+
+            # Update the lowest region if necessary
+            if lowest_bottom is None or bottom_position > lowest_bottom:
+                lowest_bottom = bottom_position
+                lowest_region_id = feature_id
+
+    # If no regions are found, return an empty set
+    if lowest_region_id is None:
+        return set()
+
+    # Extract pixels from the lowest region
+    feature_pixels = set()
+    region_mask = (labeled_mask == lowest_region_id)
+    Px_feature = np.where(np.any(region_mask, axis=0))[0]
     for px in Px_feature:
-        # Get vertical pixel indices (Py_feature(px)) for the given px where feature pixels are present
-        Py_feature_px = np.where(feature_mask[:, px] == 1)[0]
+        Py_feature_px = np.where(region_mask[:, px] == 1)[0]
         if Py_feature_px.size > 0:
             if extract == "bottom":
-                py = Py_feature_px.max()  # Get the maximum py (bottom-most pixel)
+                py = Py_feature_px.max()  # Bottom-most pixel
             else:  # extract == "top"
-                py = Py_feature_px.min()  # Get the minimum py (top-most pixel)
-            feature_pixels.add((px, py))  # Add the pixel (px, py) to the set
+                py = Py_feature_px.min()  # Top-most pixel
+            feature_pixels.add((px, py))
 
     return feature_pixels
 
@@ -166,9 +223,35 @@ def focal_length_to_pixels(focal_length_mm, sensor_width_mm, image_width_px):
     """
     return (focal_length_mm * image_width_px) / sensor_width_mm
 
-def calculate_height_difference_perspective(y1, y2, Z1, Z2, focal_length_px, image_height_px):
+# def calculate_height_difference_perspective(y1, y2, Z1, Z2, focal_length_px, image_height_px):
+#     """
+#     Calculate the height difference between two points in an image with perspective projection.
+    
+#     Parameters:
+#     - y1, y2: Vertical pixel coordinates of the two points.
+#     - Z1, Z2: Distances to the building points in real-world units (e.g., meters).
+#     - focal_length_px: Focal length in pixels.
+#     - image_height_px: Height of the image in pixels.
+    
+#     Returns:
+#     - Height difference in real-world units.
+#     """
+#     # Calculate the vertical distances from the principal point (assumed to be the center of the image)
+#     y_center = image_height_px / 2
+#     y1_prime = y1 - y_center
+#     y2_prime = y2 - y_center
+    
+#     # Apply the pinhole camera model for each point
+#     Y1 = (y1_prime * Z1) / focal_length_px
+#     Y2 = (y2_prime * Z2) / focal_length_px
+    
+#     # Calculate the height difference
+#     delta_Y = abs(Y2 - Y1)
+#     return delta_Y
+
+def calculate_height_difference_perspective(y_coords, distances,focal_length_px, image_height_px):
     """
-    Calculate the height difference between two points in an image with perspective projection.
+    Calculate the height difference between points and centre of image.
     
     Parameters:
     - y1, y2: Vertical pixel coordinates of the two points.
@@ -181,16 +264,16 @@ def calculate_height_difference_perspective(y1, y2, Z1, Z2, focal_length_px, ima
     """
     # Calculate the vertical distances from the principal point (assumed to be the center of the image)
     y_center = image_height_px / 2
-    y1_prime = y1 - y_center
-    y2_prime = y2 - y_center
-    
-    # Apply the pinhole camera model for each point
-    Y1 = (y1_prime * Z1) / focal_length_px
-    Y2 = (y2_prime * Z2) / focal_length_px
-    
-    # Calculate the height difference
-    delta_Y = abs(Y2 - Y1)
-    return delta_Y
+    height_diffs=[]
+    for y, distance in zip(y_coords,distances):
+        y_prime = y - y_center
+        # Apply the pinhole camera model for each point
+        height_diffs.append((y_prime * distance) / focal_length_px)
+    if len(height_diffs)<1:
+        return None
+    else:
+        return np.mean(height_diffs)
+    # return height_diffs
 
 def estimate_FFH(elev_foundation_top=None, elev_foundation_bottom=None,elev_stairs_top=None, elev_stairs_bottom=None, 
                  elev_frontdoor_bottom=None,elev_garagedoor_bottom=None, max_ffh=1.5, elev_camera=None):
@@ -232,3 +315,47 @@ def estimate_FFH(elev_foundation_top=None, elev_foundation_bottom=None,elev_stai
     if FFH>=max_ffh:
         return None
     return FFH
+
+
+def estimate_Z_for_points(building_outline, building_center, camera_position, image_points, focal_length_px, sensor_width_mm, image_width_px):
+    """
+    Estimate the distance (Z) to specific points on the building using building outline geometry and image coordinates.
+    
+    Parameters:
+    - building_outline: Polygon representing the building outline.
+    - building_center: Point representing the building center.
+    - camera_position: Tuple (x, y, z) representing the camera's real-world position.
+    - image_points: List of (x, y) tuples representing the points in image coordinates.
+    - focal_length_px: Focal length in pixels.
+    - sensor_width_mm: Sensor width in mm.
+    - image_width_px: Image width in pixels.
+    
+    Returns:
+    - List of estimated Z distances and y coordinates for each point.
+    """
+    # Calculate the field of view (FOV) of the camera in radians
+    fov = 2 * math.atan((sensor_width_mm / 2) / (focal_length_px / (image_width_px / sensor_width_mm)))
+    # Calculate distances from the camera to each point in the image
+    Z_distances = []
+    y_coords=[]
+    for point in image_points:
+        # Calculate the angle of the point relative to the principal point (center of the image)
+        x = point[0] - (image_width_px / 2)
+        angle = (x / focal_length_px) * (fov / image_width_px)
+        # Create a line from the camera position in the direction of the point
+        direction_line = LineString([camera_position, (camera_position.x + math.cos(angle), camera_position.y + math.sin(angle))])
+        # Calculate intersection with the building outline
+        intersection = building_outline.intersection(direction_line)
+        # If there is an intersection, calculate the distance
+        if not intersection.is_empty:
+            Z = camera_position.distance(intersection)
+        else:
+            # If no intersection, estimate Z as the distance to the building center
+            Z = camera_position.distance(building_center)
+        Z_distances.append(Z)
+        y_coords.append(point[1])
+    # if len(Z_distances)>0:
+    #     z_mean=np.mean(Z_distances)
+    # else:
+    #     z_mean=None
+    return Z_distances, y_coords
