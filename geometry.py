@@ -275,39 +275,40 @@ def calculate_height_difference_perspective(y_coords, distances,focal_length_px,
         return np.mean(height_diffs)
     # return height_diffs
 
-def estimate_FFH(elev_foundation_top=None, elev_foundation_bottom=None,elev_stairs_top=None, elev_stairs_bottom=None, 
-                 elev_frontdoor_bottom=None,elev_garagedoor_bottom=None, max_ffh=1.5, elev_camera=None):
+def estimate_FFH(delta_foundation_top=None, delta_foundation_bottom=None,delta_stairs_top=None, delta_stairs_bottom=None, 
+                 delta_frontdoor_bottom=None, delta_garagedoor_bottom=None, max_ffh=1.5):
     '''
-    Calculate FFH using elevations of available features
+    Calculate FFH using elevation difference between available features and camera.
     '''
     # determine ground elevation
-    elev_ground=None
-    if elev_garagedoor_bottom is not None:
-        elev_ground=elev_garagedoor_bottom
-    elif elev_stairs_bottom is not None:
-        elev_ground=elev_stairs_bottom
-    elif elev_foundation_bottom is not None:
-        elev_ground=elev_foundation_bottom
-    if elev_ground is None:
+    delta_elev_ground=None
+    if delta_garagedoor_bottom is not None:
+        delta_elev_ground=delta_garagedoor_bottom
+    elif delta_stairs_bottom is not None:
+        delta_elev_ground=delta_stairs_bottom
+    elif delta_foundation_bottom is not None:
+        delta_elev_ground=delta_foundation_bottom
+    if delta_elev_ground is None:
         return None
     
-    elev_floor=None
-    if elev_frontdoor_bottom is not None:
-        elev_floor=elev_frontdoor_bottom
-    elif elev_stairs_top is not None:
-        elev_floor=elev_stairs_top
-    elif elev_foundation_top is not None:
-        elev_floor=elev_foundation_top
-    if elev_floor is None:
+    # determine floor elevation
+    delta_elev_floor=None
+    if delta_frontdoor_bottom is not None:
+        delta_elev_floor=delta_frontdoor_bottom
+    elif delta_stairs_top is not None:
+        delta_elev_floor=delta_stairs_top
+    elif delta_foundation_top is not None:
+        delta_elev_floor=delta_foundation_top
+    if delta_elev_floor is None:
         return None
     
-    # calculate FFH
-    FFH=elev_floor-elev_ground
+    # calculate difference as FFH
+    FFH=delta_elev_floor-delta_elev_ground
     # handle unreasonable height due to partial front door
     if FFH<0 or FFH>=max_ffh:
-        if elev_floor==elev_frontdoor_bottom and not all(v is None for v in [elev_stairs_top,elev_foundation_top]):
-            elev_floor=max((v for v in [elev_stairs_top,elev_foundation_top] if v is not None), default=None)
-            FFH_new=elev_floor-elev_ground
+        if delta_elev_floor==delta_frontdoor_bottom and not all(v is None for v in [delta_stairs_top,delta_foundation_top]):
+            delta_elev_floor=max((v for v in [delta_stairs_top,delta_foundation_top] if v is not None), default=None)
+            FFH_new=delta_elev_floor-delta_elev_ground
             if FFH>=0 and FFH_new<FFH:
                 FFH=FFH_new
     if FFH<0:
@@ -316,6 +317,24 @@ def estimate_FFH(elev_foundation_top=None, elev_foundation_bottom=None,elev_stai
         return None
     return FFH
 
+def estimate_FFE(delta_foundation_top=None, delta_stairs_top=None,delta_frontdoor_bottom=None,elev_camera=None):
+    '''
+    Calculate FFE using elevation of features and GSV camera elevations
+    '''
+    # determine floor elevation
+    delta_elev_floor=None
+    if delta_frontdoor_bottom is not None:
+        delta_elev_floor=delta_frontdoor_bottom
+    elif delta_stairs_top is not None:
+        delta_elev_floor=delta_stairs_top
+    elif delta_foundation_top is not None:
+        delta_elev_floor=delta_foundation_top
+    if delta_elev_floor is None:
+        return None
+    
+    # calculate FFE
+    FFE=delta_elev_floor+elev_camera
+    return FFE
 
 def estimate_Z_for_points(building_outline, building_center, camera_position, image_points, focal_length_px, sensor_width_mm, image_width_px):
     """
