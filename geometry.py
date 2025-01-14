@@ -317,7 +317,7 @@ def estimate_FFH(delta_foundation_top=None, delta_foundation_bottom=None,delta_s
         return None
     return FFH
 
-def estimate_FFE(delta_foundation_top=None, delta_stairs_top=None,delta_frontdoor_bottom=None,elev_camera=None):
+def estimate_FFE(delta_foundation_top=None, delta_stairs_top=None,delta_frontdoor_bottom=None, delta_garagedoor_bottom=None,elev_camera=None):
     '''
     Calculate FFE using elevation of features and GSV camera elevations
     '''
@@ -325,6 +325,8 @@ def estimate_FFE(delta_foundation_top=None, delta_stairs_top=None,delta_frontdoo
     delta_elev_floor=None
     if delta_frontdoor_bottom is not None:
         delta_elev_floor=delta_frontdoor_bottom
+    elif delta_garagedoor_bottom is not None:
+        delta_elev_floor=delta_garagedoor_bottom
     elif delta_stairs_top is not None:
         delta_elev_floor=delta_stairs_top
     elif delta_foundation_top is not None:
