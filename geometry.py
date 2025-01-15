@@ -190,6 +190,8 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
     Returns:
     - height_diff: height difference between the camera and the feature bottom
     """
+    if bottom_pixels is None:
+        return None
     height_diff = []
     # original height or image before cropping
     H_img_orign=H_img/(lower_crop-upper_crop)
@@ -198,6 +200,9 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
     depth_gapfill=positive_depths.mean() if positive_depths.size > 0 else None
 
     for (px, py) in bottom_pixels:
+        # deal with boundary detection results that somehow could happen to object detection results
+        px=min(px,depth_map.shape[1]-1)
+        py=min(py,depth_map.shape[0]-1)
         # original y coordinate before cropping
         py_orign=py+H_img_orign*upper_crop
         # Depth from the camera to the door bottom (ddb,c) from the depth map
