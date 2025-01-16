@@ -1,2 +1,5 @@
 # Ignore API key json file
 config.json
+
+# Ignore output data folder
+output/

@@ -176,7 +176,7 @@ def extract_feature_pixels_lowest_region(feature_mask, extract="bottom"):
     return feature_pixels
 
 
-def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25,lower_crop=0.6):
+def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25,lower_crop=0.6, depth_gapfill=None):
     """
     Calculate the height difference between feature bottom and camera and based on equirectangular projection of GSV pano images
     
@@ -186,6 +186,7 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
     - H_img: Height (number of rows) of the panorama image
     - upper_crop: upper cropping proportions range
     - lower_crop: lower cropping proportions range
+    - depth_gapfill: gapfilling depth value
     
     Returns:
     - height_diff: height difference between the camera and the feature bottom
@@ -196,8 +197,8 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
     # original height or image before cropping
     H_img_orign=H_img/(lower_crop-upper_crop)
     # gap filling depth value
-    positive_depths=depth_map[depth_map > 0]
-    depth_gapfill=positive_depths.mean() if positive_depths.size > 0 else None
+    # positive_depths=depth_map[depth_map > 0]
+    # depth_gapfill=positive_depths.mean() if positive_depths.size > 0 else None
 
     for (px, py) in bottom_pixels:
         # deal with boundary detection results that somehow could happen to object detection results
@@ -207,8 +208,10 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
         py_orign=py+H_img_orign*upper_crop
         # Depth from the camera to the door bottom (ddb,c) from the depth map
         ddb_c = depth_map[py, px]
-        # deal with abnormal depth value
-        if ddb_c<1:
+        # deal with abnormal depth values
+        # ddb_c=depth_gapfill
+        if ddb_c<5:
+            print('using gap filling depth')
             ddb_c=depth_gapfill
         if ddb_c is not None:
             # Pitch angle from the camera to the door bottom (Δθdb,c)
@@ -281,7 +284,7 @@ def calculate_height_difference_perspective(y_coords, distances,focal_length_px,
     # return height_diffs
 
 def estimate_FFH(delta_foundation_top=None, delta_foundation_bottom=None,delta_stairs_top=None, delta_stairs_bottom=None, 
-                 delta_frontdoor_bottom=None, delta_garagedoor_bottom=None, max_ffh=1.5):
+                 delta_frontdoor_bottom=None, delta_garagedoor_bottom=None, max_ffh=2):
     '''
     Calculate FFH using elevation difference between available features and camera.
     '''
@@ -316,9 +319,7 @@ def estimate_FFH(delta_foundation_top=None, delta_foundation_bottom=None,delta_s
             FFH_new=delta_elev_floor-delta_elev_ground
             if FFH>=0 and FFH_new<FFH:
                 FFH=FFH_new
-    if FFH<0:
-        FFH=0
-    if FFH>=max_ffh:
+    if FFH<0 or FFH>=max_ffh:
         return None
     return FFH
 
