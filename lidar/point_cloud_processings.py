@@ -114,3 +114,45 @@ def project_point_cloud_vertical(points, angle, pixel_size):
     elevation_map = elevation_map / count_map
     
     return elevation_map
+
+def get_rotation_matrix(yaw, pitch, roll):
+    """
+    Compute the rotation matrix from yaw, pitch, and roll angles.
+
+    Parameters:
+        yaw (float): Yaw angle in radians (rotation around z-axis).
+        pitch (float): Pitch angle in radians (rotation around y-axis).
+        roll (float): Roll angle in radians (rotation around x-axis).
+
+    Returns:
+        R (numpy.ndarray): 3x3 rotation matrix.
+    """
+    # Rotation matrix for yaw (z-axis)
+    Rz = np.array([
+        [np.cos(yaw), -np.sin(yaw), 0],
+        [np.sin(yaw), np.cos(yaw), 0],
+        [0, 0, 1]
+    ])
+    # Rotation matrix for pitch (y-axis)
+    Ry = np.array([
+        [np.cos(pitch), 0, np.sin(pitch)],
+        [0, 1, 0],
+        [-np.sin(pitch), 0, np.cos(pitch)]
+    ])
+    # Rotation matrix for roll (x-axis)
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(roll), -np.sin(roll)],
+        [0, np.sin(roll), np.cos(roll)]
+    ])
+    # Combined rotation matrix: R = Rz * Ry * Rx
+    R = np.dot(Rz, np.dot(Ry, Rx))
+    # Alignment rotation matrix (real-world to camera coordinates)
+    R_align = np.array([
+        [1, 0, 0], # X -> X
+        [0, 0, -1], # Z -> -Y
+        [0, 1, 0] # Y -> Z
+    ])
+    # Total rotation matrix: R_total = R_align * R
+    R_total = np.dot(R_align, R)
+    return R_total
