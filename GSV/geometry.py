@@ -209,10 +209,10 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
         # Depth from the camera to the door bottom (ddb,c) from the depth map
         ddb_c = depth_map[py, px]
         # deal with abnormal depth values
-        # ddb_c=depth_gapfill
-        if ddb_c<5:
-            print('using gap filling depth')
-            ddb_c=depth_gapfill
+        ddb_c=depth_gapfill
+        # if ddb_c<5:
+        #     print('using gap filling depth')
+        #     ddb_c=depth_gapfill
         if ddb_c is not None:
             # Pitch angle from the camera to the door bottom (Δθdb,c)
             delta_theta_db_c=(H_img_orign/2.0-py_orign)*(180.0/H_img_orign)
@@ -223,6 +223,44 @@ def calculate_height_difference(bottom_pixels, depth_map, H_img, upper_crop=0.25
 
     # Returning the average height difference if there are multiple feature bottom pixels
     return np.mean(height_diff) if height_diff else None
+
+def calculate_width_difference(left_pixels, right_pixels, depth_map, W_img, angle_extend=40, depth_gapfill=None):
+    """
+    Calculate the width difference on equirectangular projection of GSV pano images
+    
+    Parameters:
+    - left_pixels: Set of (px, py) tuples representing the left side pixels of the feature
+    - right_pixels: Set of (px, py) tuples representing the right side pixels of the feature
+    - depth_map: 2D numpy array where each value represents the depth at each pixel
+    - W_img: Width (number of columns) of the panorama image
+    - angle_extend: the horizontal expand angle (in degrees) of the full pano image
+    - depth_gapfill: gapfilling depth value
+    
+    Returns:
+    - width_diff: width difference between the camera and the feature bottom
+    """
+    if (left_pixels is None) or (right_pixels is None):
+        return None
+    
+    # mean of left and right pixels
+    x_left, y_left=np.mean([px[0] for px in left_pixels]),np.mean([px[1] for px in left_pixels])
+    x_right,y_right=np.mean([px[0] for px in right_pixels]),np.mean([px[1] for px in right_pixels])
+
+    # Compute bounding box center
+    x_c, y_c = np.mean([x_left,x_right]),np.mean([y_left,y_right])
+
+    # depth of centre
+    # deal with boundary detection results that somehow could happen to object detection results
+    x_c=min(x_c,depth_map.shape[1]-1)
+    y_c=min(y_c,depth_map.shape[0]-1)
+
+    # D_c=depth_map[y_c, x_c] # using depth map
+    D_c=depth_gapfill
+
+    # calculate real-world width
+    delta_phi = ((x_right-x_left) / W_img) * angle_extend  # Horizontal FOV
+    width_diff = 2 * D_c * np.tan(np.radians(delta_phi / 2))
+    return width_diff
 
 # functions to restore geometry from RICS images
 def focal_length_to_pixels(focal_length_mm, sensor_width_mm, image_width_px):
