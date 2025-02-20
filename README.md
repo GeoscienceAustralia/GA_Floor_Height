@@ -13,7 +13,7 @@ There are some other folders that were created/cloned as needed parts of the abo
 - data: input vector files for ground truth and building data.  
 - superseded: out-of-date notebooks for some abandoned methods.  
 
-**Note:** This repo It uses conda to manage python environment specified in the environment.yml file. It uses the streetlebel repository code to access Google Street View data: https://streetlevel.readthedocs.io/en/master/  
+**Note:** This repo uses conda to manage python environment specified in the environment.yml file. 
 
 ## Setting up the environment to run the code
 - Clone the repository to your local machine
