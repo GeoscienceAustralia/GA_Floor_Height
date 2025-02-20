@@ -28,6 +28,6 @@ This folder contains notebooks and scripts used for the workflow to estimate FFH
 In addtion there are a few other notebooks that may be intermediate/unused or just for experimental purpose. The other two notebooks/scripts that are worthwhile to note at the moment are:
 
 - [Groundtruth_FFH_checking.ipynb](Groundtruth_FFH_checking.ipynb): an interactive notebook to estimate roughly the FFH using high-resolution building height data (AGO) and the GSV street view images.  
-- [geometry.py] (geometry.py): Scripts containinig the functions used for geometry restoration.
+- [geometry.py](geometry.py): Scripts containinig the functions used for geometry restoration.
 
 **Note:** This folder requires installation of the streetlevel package to access Google Street View data: https://streetlevel.readthedocs.io/en/master/
