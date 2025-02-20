@@ -1,10 +1,19 @@
 # GA-floor-height
 
 ## What this repo does
-- This repo contains code for the GA first floor height estimation project. 
-  - It uses conda to manage python environment specified in the environment.yml file
+- This repo contains code for the GA First Floor Height estimation project. It contains multiple folders depending on the data used. Currently the most important folders include:  
+- GSV: street view image analysis and FFH estimation for each single building.  
+- regression: statistical regression of FFH using raster layers e.g. DEM, DSM.  
+- lidar: processing, analysis and FFH estimation using lidar point cloud data for each single building.  
+- RICS: analysis of street view car camera images acquired by GA's Rapid Image Collection System.  
 
-**Note:** This repo uses the streetview repository code to access Google Street View data: https://github.com/robolyst/streetview
+There are some other folders that were created/cloned as needed parts of the above explorations:  
+- yolov5: cloned model and scripts used for object detection using YOLO v5 model.  
+- dem: folder containing notebooks to explore various DEMs resources.  
+- data: input vector files for ground truth and building data.  
+- superseded: out-of-date notebooks for some abandoned methods.  
+
+**Note:** This repo It uses conda to manage python environment specified in the environment.yml file. It uses the streetlebel repository code to access Google Street View data: https://streetlevel.readthedocs.io/en/master/  
 
 ## Setting up the environment to run the code
 - Clone the repository to your local machine
@@ -22,7 +31,3 @@ cd GA-floor-height
 conda env create -f environment.yml
 ````
 - You should now be up and running with a new repo and conda environment
-
-
-## Updating this repo
-- Members of the "FrontierSI staff" Github team have permissions to update this repository. 
