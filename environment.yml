@@ -21,73 +21,77 @@ dependencies:
   - shapely
   - rasterio
   # Data Science
-  - scipy
-  - scikit-learn
-
-  # # streetview requirments
-  # - pydantic
-  # - httpx
-  # testing dependencies
-  - pytest
-  - pytest-cov
-  - pytest-vcr
-  - pytest-asyncio
-  - isort
-  - black
-  - flake8
-  - mypy
-  - types-requests
-  - types-Pillow
-  - build
-  - twine
-
-  # YOLOv5 requirements
-# Base ------------------------------------------------------------------------
-  # - gitpython>=3.1.30
-  # - matplotlib>=3.3
-  # - numpy>=1.23.5
-  # - opencv>=4.1.1
-  # - pillow>=10.3.0
-  # - psutil  # system resources
-  # - PyYAML>=5.3.1
-  # - requests>=2.32.2
-  # - scipy>=1.4.1
-  # - torchvision=0.13
-  # - tqdm>=4.66.3
-  # - ultralytics>=8.2.34  # https://ultralytics.com
-# - protobuf<=3.20.1  # https://github.com/ultralytics/yolov5/issues/8012
-
-# Logging ---------------------------------------------------------------------
-# - tensorboard>=2.4.1
-# - clearml>=1.2.0
-# - comet
-
-# Plotting --------------------------------------------------------------------
+  # - scipy
+  # - scikit-learn
+  # aws
+  - boto3
+  # database
+  - sqlite
+  # lidar data
+  - laspy
+  # Plotting
   - pandas>=1.1.4
   - seaborn>=0.11.0
-  - matplotlib
+  # - matplotlib
+  - plotly
+  # image annotation
+  - labelme
 
-# Export ----------------------------------------------------------------------
-# - coremltools>=6.0  # CoreML export
-# - onnx>=1.10.0  # ONNX export
-# - onnx-simplifier>=0.4.1  # ONNX simplifier
-# - nvidia-pyindex  # TensorRT export
-# - nvidia-tensorrt  # TensorRT export
-# - scikit-learn<=1.1.2  # CoreML quantization
-# - tensorflow>=2.4.0,<=2.13.1  # TF exports (-cpu, -aarch64, -macos)
-# - tensorflowjs>=3.9.0  # TF.js export
-# - openvino-dev>=2023.0  # OpenVINO export
+  # # # streetview requirments (superseded by streetlevel)
+  # # - pydantic
+  # # - httpx
+  # # testing dependencies
+  # - pytest
+  # - pytest-cov
+  # - pytest-vcr
+  # - pytest-asyncio
+  # - isort
+  # - black
+  # - flake8
+  # - mypy
+  # - types-requests
+  # - types-Pillow
+  # - build
+  # - twine
 
-# Deploy ----------------------------------------------------------------------
+  # YOLOv5 requirements
+  # Base
+  - gitpython>=3.1.30
+  - matplotlib>=3.3
+  - numpy>=1.23.5
+  - opencv>=4.1.1
+  - pillow>=10.3.0
+  - psutil  # system resources
+  - PyYAML>=5.3.1
+  - requests>=2.32.2
+  - scipy>=1.4.1
+  - torchvision=0.13
+  - tqdm>=4.66.3
+  - ultralytics>=8.2.34  # https://ultralytics.com
+  - protobuf<=3.20.1  # https://github.com/ultralytics/yolov5/issues/8012
+# Logging
+  - tensorboard>=2.4.1
+  - clearml>=1.2.0
+  - comet
+# Export
+  - coremltools>=6.0  # CoreML export
+  - onnx>=1.10.0  # ONNX export
+  - onnx-simplifier>=0.4.1  # ONNX simplifier
+  - nvidia-pyindex  # TensorRT export
+  - nvidia-tensorrt  # TensorRT export
+  - scikit-learn<=1.1.2  # CoreML quantization
+  - tensorflow>=2.4.0,<=2.13.1  # TF exports (-cpu, -aarch64, -macos)
+  - tensorflowjs>=3.9.0  # TF.js export
+  - openvino-dev>=2023.0  # OpenVINO export
+# Deploy
   - setuptools>=70.0.0 # Snyk vulnerability fix
 # - tritonclient[all]~=2.24.0
+# Extras
+  - mss  # screenshots
+  - albumentations>=1.0.3
+  - pycocotools>=2.0.6  # COCO mAP
 
-# Extras ----------------------------------------------------------------------
-# - mss  # screenshots
-# - albumentations>=1.0.3
-# - pycocotools>=2.0.6  # COCO mAP
-
-# packages unavailable in conda channels---------------------------------------
+# packages installed from pip
   - pip:
     - thop>=0.1.1  # FLOPs computation
     - torch>=1.8.0  # see https://pytorch.org/get-started/locally (recommended)

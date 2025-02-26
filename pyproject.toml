@@ -1,0 +1,25 @@
+[project]
+version = "0.0.1"
+name = "GA-floor-height"
+description = "Building first floor height estimation using street view data and deep learning."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+authors = [
+    { name = "Lavender Liu", email = "whusggliuqx@gmail.com"},
+    { name = "Fang Yuan", email = "fyuan@frontiersi.com.au" },
+    { name = "Lachlan Ng", email = "lng@frontiersi.com.au" }
+]
+maintainers = [
+    { name = "Lachlan Hurst", email = "lhurst@frontiersi.com.au"},
+    { name = "Madeleine Seehaber", email = "mseehaber@frontiersi.com.au" }
+]
+
+# Required dependencies:
+# refer to environment.yml
+
+[project.urls]
+"Homepage" = "https://github.com/frontiersi/GA-floor-height"
+"Issues" = "https://github.com/frontiersi/GA-floor-height/issues"

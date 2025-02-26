@@ -13,7 +13,7 @@ There are some other folders that were created/cloned as needed parts of the abo
 - data: input vector files for ground truth and building data.  
 - superseded: out-of-date notebooks for some abandoned methods.  
 
-**Note:** This repo uses conda to manage python environment specified in the environment.yml file. 
+**Note:** This repo uses conda and pip to manage python environment specified in the environment.yml file. To install all required dependencies in a new environment _floorheight_, use _conda env create -f environment.yml_. Other project metadata are included in the [pyproject.toml](pyproject.toml) file. In the future the dependencies list in the .yml file may be moved into the .toml file.  
 
 ## Setting up the environment to run the code
 - Clone the repository to your local machine
