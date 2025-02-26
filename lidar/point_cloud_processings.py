@@ -67,6 +67,171 @@ def create_bev_density_map(points, x_limits, y_limits, resolution=0.1):
 
     return density_map
 
+def project_lidar_perspective(point_cloud, position, orientation,resolution, fov, no_data_value=-9999):
+    """
+    Project LiDAR point cloud onto a 2D perspective image and calculate an elevation map.
+
+    Parameters:
+        point_cloud (numpy.ndarray): Nx3 array of LiDAR points (x, y, z).
+        position (tuple): Viewpoint position as a 3-tuple (x, y, z).
+        orientation (tuple): Viewpoint orientation as a 3-tuple (yaw, pitch, roll in radians).
+        resolution (tuple): Image resolution (width, height) in pixels.
+        fov (float): Horizontal field of view in radians.
+
+    Returns:
+        numpy.ndarray: 2D elevation map, averaged within each pixel grid.
+    """
+    # Unpack inputs
+    px, py, pz = point_cloud.T  # Point cloud coordinates
+    print('original points: ',point_cloud)
+    vx, vy, vz = position  # Viewpoint position
+    print('viewpoint: ',position)
+    yaw, pitch, roll = orientation  # Viewpoint orientation
+    img_width, img_height = resolution  # Image resolution
+
+    # Step 1: Translate points to the viewpoint's position
+    points = np.array([px - vx, py - vy, pz - vz]).T
+    # Step 2: Apply rotation to align with the viewpoint's orientation
+    # rotation_matrix = R.from_euler('zyx', [yaw, pitch, roll],degrees=False).as_matrix()
+    # rotation_matrix = R.from_euler('XYZ', [roll, pitch, yaw],degrees=False).as_matrix()
+    rotation_matrix=get_rotation_matrix(yaw, pitch,roll)
+    print('rotation matrix: ',rotation_matrix)
+    points = points @ rotation_matrix.T
+    # print('Points transformed: ',points)
+    print("Transformed X min/max:", np.min(points[:, 0]), np.max(points[:, 0]))
+    print("Transformed Y min/max:", np.min(points[:, 1]), np.max(points[:, 1]))
+    print("Transformed Z min/max:", np.min(points[:, 2]), np.max(points[:, 2]))
+
+    print('total number of points: ',len(points))
+    points = np.asarray(points)
+
+    # Perspective projection parameters
+    focal_length = 0.5 * img_width / np.tan(0.5 * fov)
+    print('focal length in pixels:',focal_length)
+
+    print("Min/max transformed Z:", np.min(points[:, 2]), np.max(points[:, 2]))
+    valid = points[:, 2] > 0
+    print("Number of points in front of the camera:", np.sum(valid))
+
+    # Filter points in front of the camera (z > 0)
+    x, y, z = points.T
+    valid = z > 0
+    x, y, z = x[valid], y[valid], z[valid]
+    pz=pz[valid]
+    print('number of points in front of camera: ',np.sum(valid))
+
+    # Project to image plane
+    u = (focal_length * x / z + img_width / 2.0).astype(int)
+    v = (focal_length * y / z + img_height / 2.0).astype(int)
+    # Flip v-axis to match image coordinates (in many cases, v increases downward)
+    v = img_height - v
+    print('u: ',u)
+    print('v: ',v)
+    print('z: ',z)
+
+    # Debugging: Check projected values
+    print("Projected u min/max:", np.min(u), np.max(u))
+    print("Projected v min/max:", np.min(v), np.max(v))
+
+    # Clip points to be within image bounds
+    valid_pixels = (u >= 0) & (u < img_width) & (v >= 0) & (v < img_height)
+    print('number of points within view: ',np.sum(valid_pixels))
+    u, v, z = u[valid_pixels], v[valid_pixels], z[valid_pixels]
+    pz=pz[valid_pixels]
+
+    # Create an elevation map and track counts for averaging
+    elevation_map = np.zeros((img_height, img_width), dtype=np.float32)
+    counts = np.zeros((img_height, img_width), dtype=np.int32)
+
+    for px, py, z_val in zip(u, v, pz):
+        elevation_map[py, px] += z_val  # Accumulate elevation values
+        counts[py, px] += 1            # Count the number of points per pixel
+
+    # Avoid division by zero and calculate the average elevation
+    non_zero = counts > 0
+    elevation_map[non_zero] /= counts[non_zero]
+
+    # Replace zero or invalid elevation values with a no-data value (e.g., -1 for invalid elevation)
+    elevation_map[~non_zero] = no_data_value
+
+    return elevation_map
+
+def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov, resolution,no_data_value=-9999):
+    """
+    Calculate an elevation image from a point cloud projected within the field of view.
+
+    Parameters:
+        point_cloud (numpy.ndarray): Array of shape (N, 3) with 3D points (x, y, z).
+        position (tuple): Viewpoint position as a 3-tuple (x, y, z).
+        orientation (tuple): Viewpoint orientation as a 3-tuple (yaw, pitch, roll in radians).
+        hfov (float): Horizontal field of view in radians.
+        vfov (float): Vertical field of view in radians.
+        resolution (tuple): Image resolution (width, height).
+
+    Returns:
+        numpy.ndarray: 2D array representing the elevation image.
+    """
+    # Unpack inputs
+    px, py, pz = point_cloud.T  # Point cloud coordinates
+    vx, vy, vz = position  # Viewpoint position
+    yaw, pitch, roll = orientation  # Viewpoint orientation
+    img_width, img_height = resolution  # Image resolution
+
+    # Step 1: Translate points to the viewpoint's position
+    points = np.array([px - vx, py - vy, pz - vz]).T
+
+    # Step 2: Apply rotation to align with the viewpoint's orientation
+    # rotation_matrix = R.from_euler('zyx', [yaw, pitch, roll]).as_matrix()
+    rotation_matrix=get_rotation_matrix(yaw, pitch,roll)
+    points = points @ rotation_matrix.T
+
+    # Step 3: Convert to spherical coordinates
+    r = np.linalg.norm(points, axis=1)  # Radial distance
+    # theta = np.arctan2(points[:, 2], points[:, 0])  # Azimuth angle
+    theta = np.arctan2(points[:, 0], r)  # Azimuth angle
+    # phi = np.arcsin(points[:, 1] / r)  # Elevation angle
+    phi = np.arctan2((-1.0)*points[:, 1], r)  # Elevation angle
+
+    print('r: ',r)
+    print('theta: ',theta)
+    print('phi: ',phi)
+
+    # Step 4: Filter points within the field of view
+    mask = (
+        (theta >= -hfov / 2) & (theta <= hfov / 2) &
+        (phi >= -vfov / 2) & (phi <= vfov / 2)
+    )
+    print('number of points within view: ',np.sum(mask))
+    points = points[mask]
+    theta = theta[mask]
+    phi = phi[mask]
+    r = r[mask]
+    pz=pz[mask]
+
+    # Step 5: Map to image plane
+    u = ((theta + hfov / 2) / hfov * img_width).astype(int)
+    v = ((phi + vfov / 2) / vfov * img_height).astype(int)
+
+    print('min/max u: ',np.min(u),np.max(u))
+    print('min/max v: ',np.min(v),np.max(v))
+    u = np.clip(u, 0, img_width - 1)
+    v = np.clip(v, 0, img_height - 1)
+
+    # Step 6: Create the elevation image
+    elevation_map = np.zeros((img_height, img_width), dtype=np.float32)
+    counts = np.zeros((img_height, img_width), dtype=np.int32)
+    for px, py, z_val in zip(u, v, pz):
+        elevation_map[py, px] += z_val  # Accumulate elevation values
+        counts[py, px] += 1            # Count the number of points per pixel
+
+    # Avoid division by zero and calculate the average elevation
+    non_zero = counts > 0
+    elevation_map[non_zero] /= counts[non_zero]
+    # Replace zero or invalid elevation values with a no-data value (e.g., -1 for invalid elevation)
+    elevation_map[~non_zero] = no_data_value
+
+    return elevation_map
+
 def project_point_cloud_vertical(points, angle, pixel_size):
     # Step 1: Define rotation matrix for the vertical plane
     theta = np.radians(angle)
