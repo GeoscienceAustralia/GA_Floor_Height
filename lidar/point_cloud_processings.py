@@ -79,7 +79,8 @@ def project_lidar_perspective(point_cloud, position, orientation,resolution, fov
         fov (float): Horizontal field of view in radians.
 
     Returns:
-        numpy.ndarray: 2D elevation map, averaged within each pixel grid.
+        numpy.ndarray: 2D elevation map.
+        numpy.ndarray: 2D depth map.
     """
     # Unpack inputs
     px, py, pz = point_cloud.T  # Point cloud coordinates
@@ -135,7 +136,7 @@ def project_lidar_perspective(point_cloud, position, orientation,resolution, fov
             elevation_map[py, px] = z_val
             depth_map[py, px] = depth  # Update depth to track closest point
 
-    return elevation_map
+    return elevation_map, depth_map
 
 def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov, resolution,no_data_value=-9999):
     """
@@ -151,6 +152,7 @@ def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov
 
     Returns:
         numpy.ndarray: 2D array representing the elevation image.
+        numpy.ndarray: 2D depth map.
     """
     # Unpack inputs
     px, py, pz = point_cloud.T  # Point cloud coordinates
@@ -202,7 +204,7 @@ def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov
             elevation_map[py, px] = z_val
             depth_map[py, px] = depth  # Update depth to track closest point
 
-    return elevation_map
+    return elevation_map, depth_map
 
 # superseded
 # def project_point_cloud_vertical(points, angle, pixel_size):
