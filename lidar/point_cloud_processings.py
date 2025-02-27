@@ -83,55 +83,43 @@ def project_lidar_perspective(point_cloud, position, orientation,resolution, fov
     """
     # Unpack inputs
     px, py, pz = point_cloud.T  # Point cloud coordinates
-    print('original points: ',point_cloud)
     vx, vy, vz = position  # Viewpoint position
-    print('viewpoint: ',position)
     yaw, pitch, roll = orientation  # Viewpoint orientation
     img_width, img_height = resolution  # Image resolution
 
     # Step 1: Translate points to the viewpoint's position
     points = np.array([px - vx, py - vy, pz - vz]).T
     # Step 2: Apply rotation to align with the viewpoint's orientation
-    # rotation_matrix = R.from_euler('zyx', [yaw, pitch, roll],degrees=False).as_matrix()
-    # rotation_matrix = R.from_euler('XYZ', [roll, pitch, yaw],degrees=False).as_matrix()
     rotation_matrix=get_rotation_matrix(yaw, pitch,roll)
-    print('rotation matrix: ',rotation_matrix)
     points = points @ rotation_matrix.T
     # print('Points transformed: ',points)
-    print("Transformed X min/max:", np.min(points[:, 0]), np.max(points[:, 0]))
-    print("Transformed Y min/max:", np.min(points[:, 1]), np.max(points[:, 1]))
-    print("Transformed Z min/max:", np.min(points[:, 2]), np.max(points[:, 2]))
+    # print("Transformed X min/max:", np.min(points[:, 0]), np.max(points[:, 0]))
+    # print("Transformed Y min/max:", np.min(points[:, 1]), np.max(points[:, 1]))
+    # print("Transformed Z min/max:", np.min(points[:, 2]), np.max(points[:, 2]))
 
     print('total number of points: ',len(points))
     points = np.asarray(points)
 
     # Perspective projection parameters
-    focal_length = 0.5 * img_width / np.tan(0.5 * fov)
-    print('focal length in pixels:',focal_length)
-
-    print("Min/max transformed Z:", np.min(points[:, 2]), np.max(points[:, 2]))
-    valid = points[:, 2] > 0
-    print("Number of points in front of the camera:", np.sum(valid))
-
+    focal_length = 0.5 * img_width / np.tan(0.5 * fov) # focal length in pixels
+    # print("Min/max transformed Z:", np.min(points[:, 2]), np.max(points[:, 2]))
     # Filter points in front of the camera (z > 0)
+    valid = points[:, 2] > 0
+    # print("Number of points in front of the camera:", np.sum(valid))
     x, y, z = points.T
     valid = z > 0
     x, y, z = x[valid], y[valid], z[valid]
     pz=pz[valid]
-    print('number of points in front of camera: ',np.sum(valid))
 
     # Project to image plane
     u = (focal_length * x / z + img_width / 2.0).astype(int)
     v = (focal_length * y / z + img_height / 2.0).astype(int)
     # Flip v-axis to match image coordinates (in many cases, v increases downward)
     v = img_height - v
-    print('u: ',u)
-    print('v: ',v)
-    print('z: ',z)
 
     # Debugging: Check projected values
-    print("Projected u min/max:", np.min(u), np.max(u))
-    print("Projected v min/max:", np.min(v), np.max(v))
+    # print("Projected u min/max:", np.min(u), np.max(u))
+    # print("Projected v min/max:", np.min(v), np.max(v))
 
     # Clip points to be within image bounds
     valid_pixels = (u >= 0) & (u < img_width) & (v >= 0) & (v < img_height)
@@ -139,20 +127,13 @@ def project_lidar_perspective(point_cloud, position, orientation,resolution, fov
     u, v, z = u[valid_pixels], v[valid_pixels], z[valid_pixels]
     pz=pz[valid_pixels]
 
-    # Create an elevation map and track counts for averaging
-    elevation_map = np.zeros((img_height, img_width), dtype=np.float32)
-    counts = np.zeros((img_height, img_width), dtype=np.int32)
-
-    for px, py, z_val in zip(u, v, pz):
-        elevation_map[py, px] += z_val  # Accumulate elevation values
-        counts[py, px] += 1            # Count the number of points per pixel
-
-    # Avoid division by zero and calculate the average elevation
-    non_zero = counts > 0
-    elevation_map[non_zero] /= counts[non_zero]
-
-    # Replace zero or invalid elevation values with a no-data value (e.g., -1 for invalid elevation)
-    elevation_map[~non_zero] = no_data_value
+    # calculate elevation map
+    elevation_map = np.full((img_height, img_width), no_data_value, dtype=np.float32)
+    depth_map = np.full((img_height, img_width), np.inf, dtype=np.float32)
+    for px, py, z_val, depth in zip(u, v, pz, z):
+        if depth < depth_map[py, px]:  # Update only if this point is closer
+            elevation_map[py, px] = z_val
+            depth_map[py, px] = depth  # Update depth to track closest point
 
     return elevation_map
 
@@ -192,10 +173,6 @@ def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov
     # phi = np.arcsin(points[:, 1] / r)  # Elevation angle
     phi = np.arctan2((-1.0)*points[:, 1], r)  # Elevation angle
 
-    print('r: ',r)
-    print('theta: ',theta)
-    print('phi: ',phi)
-
     # Step 4: Filter points within the field of view
     mask = (
         (theta >= -hfov / 2) & (theta <= hfov / 2) &
@@ -212,73 +189,69 @@ def project_lidar_equirectangular(point_cloud, position, orientation, hfov, vfov
     u = ((theta + hfov / 2) / hfov * img_width).astype(int)
     v = ((phi + vfov / 2) / vfov * img_height).astype(int)
 
-    print('min/max u: ',np.min(u),np.max(u))
-    print('min/max v: ',np.min(v),np.max(v))
+    # print('min/max u: ',np.min(u),np.max(u))
+    # print('min/max v: ',np.min(v),np.max(v))
     u = np.clip(u, 0, img_width - 1)
     v = np.clip(v, 0, img_height - 1)
 
     # Step 6: Create the elevation image
-    elevation_map = np.zeros((img_height, img_width), dtype=np.float32)
-    counts = np.zeros((img_height, img_width), dtype=np.int32)
-    for px, py, z_val in zip(u, v, pz):
-        elevation_map[py, px] += z_val  # Accumulate elevation values
-        counts[py, px] += 1            # Count the number of points per pixel
-
-    # Avoid division by zero and calculate the average elevation
-    non_zero = counts > 0
-    elevation_map[non_zero] /= counts[non_zero]
-    # Replace zero or invalid elevation values with a no-data value (e.g., -1 for invalid elevation)
-    elevation_map[~non_zero] = no_data_value
+    elevation_map = np.full((img_height, img_width), no_data_value, dtype=np.float32)
+    depth_map = np.full((img_height, img_width), np.inf, dtype=np.float32)
+    for px, py, z_val, depth in zip(u, v, pz, r):
+        if depth < depth_map[py, px]:  # Update only if this point is closer
+            elevation_map[py, px] = z_val
+            depth_map[py, px] = depth  # Update depth to track closest point
 
     return elevation_map
 
-def project_point_cloud_vertical(points, angle, pixel_size):
-    # Step 1: Define rotation matrix for the vertical plane
-    theta = np.radians(angle)
-    R = np.array([
-        [np.cos(theta), -np.sin(theta), 0],
-        [np.sin(theta), np.cos(theta), 0],
-        [0, 0, 1]
-    ])
+# superseded
+# def project_point_cloud_vertical(points, angle, pixel_size):
+#     # Step 1: Define rotation matrix for the vertical plane
+#     theta = np.radians(angle)
+#     R = np.array([
+#         [np.cos(theta), -np.sin(theta), 0],
+#         [np.sin(theta), np.cos(theta), 0],
+#         [0, 0, 1]
+#     ])
     
-    # Step 2: Rotate points
-    rotated_points = points @ R.T
+#     # Step 2: Rotate points
+#     rotated_points = points @ R.T
     
-    # Step 3: Use rotated x' and z for the vertical plane
-    x_prime = rotated_points[:, 0]  # Horizontal axis of the vertical plane
-    z_prime = rotated_points[:, 2]  # Elevation
+#     # Step 3: Use rotated x' and z for the vertical plane
+#     x_prime = rotated_points[:, 0]  # Horizontal axis of the vertical plane
+#     z_prime = rotated_points[:, 2]  # Elevation
 
-    print("x' range:", x_prime.min(), x_prime.max())
-    print("z range:", z_prime.min(), z_prime.max())
-    print("Elevation range (original z):", rotated_points[:, 2].min(), rotated_points[:, 2].max())
+#     print("x' range:", x_prime.min(), x_prime.max())
+#     print("z range:", z_prime.min(), z_prime.max())
+#     print("Elevation range (original z):", rotated_points[:, 2].min(), rotated_points[:, 2].max())
 
     
-    # Discretize x' and z' for a 2D grid
-    x_min, x_max = x_prime.min(), x_prime.max()
-    z_min, z_max = z_prime.min(), z_prime.max()
-    grid_x = np.arange(x_min, x_max, pixel_size)
-    grid_z = np.arange(z_min, z_max, pixel_size)
+#     # Discretize x' and z' for a 2D grid
+#     x_min, x_max = x_prime.min(), x_prime.max()
+#     z_min, z_max = z_prime.min(), z_prime.max()
+#     grid_x = np.arange(x_min, x_max, pixel_size)
+#     grid_z = np.arange(z_min, z_max, pixel_size)
     
-    x_idx = np.floor((x_prime - x_min) / pixel_size).astype(int)
-    z_idx = np.floor((z_prime - z_min) / pixel_size).astype(int)
+#     x_idx = np.floor((x_prime - x_min) / pixel_size).astype(int)
+#     z_idx = np.floor((z_prime - z_min) / pixel_size).astype(int)
     
-    # Step 4: Aggregate mean elevation for each grid cell
-    elevation_map = np.full((len(grid_z), len(grid_x)), np.nan)
-    count_map = np.zeros_like(elevation_map, dtype=int)
+#     # Step 4: Aggregate mean elevation for each grid cell
+#     elevation_map = np.full((len(grid_z), len(grid_x)), np.nan)
+#     count_map = np.zeros_like(elevation_map, dtype=int)
     
-    for xi, zi, yi in zip(x_idx, z_idx, rotated_points[:, 2]):
-        if 0 <= xi < elevation_map.shape[1] and 0 <= zi < elevation_map.shape[0]:
-            if np.isnan(elevation_map[zi, xi]):
-                elevation_map[zi, xi] = yi
-                count_map[zi, xi] = 1
-            else:
-                elevation_map[zi, xi] += yi
-                count_map[zi, xi] += 1
+#     for xi, zi, yi in zip(x_idx, z_idx, rotated_points[:, 2]):
+#         if 0 <= xi < elevation_map.shape[1] and 0 <= zi < elevation_map.shape[0]:
+#             if np.isnan(elevation_map[zi, xi]):
+#                 elevation_map[zi, xi] = yi
+#                 count_map[zi, xi] = 1
+#             else:
+#                 elevation_map[zi, xi] += yi
+#                 count_map[zi, xi] += 1
     
-    # Compute mean elevation
-    elevation_map = elevation_map / count_map
+#     # Compute mean elevation
+#     elevation_map = elevation_map / count_map
     
-    return elevation_map
+#     return elevation_map
 
 def get_rotation_matrix(yaw, pitch, roll):
     """
