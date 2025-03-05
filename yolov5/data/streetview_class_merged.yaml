@@ -1,0 +1,9 @@
+train: C:/Users/lliu/FrontierSI/Projects - 127 Residential Dwelling Floor Height/4 Executing/Data Exploration/GSV/Wagga/YOLO_test/finetune_merged/train/images
+val: C:/Users/lliu/FrontierSI/Projects - 127 Residential Dwelling Floor Height/4 Executing/Data Exploration/GSV/Wagga/YOLO_test/finetune_merged/validation/images
+test: 
+
+names: 
+  0: garage door
+  1: stairs
+  2: foundation
+  3: front door
