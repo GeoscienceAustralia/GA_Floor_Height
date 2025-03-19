@@ -13,6 +13,9 @@ There are some other folders that were created/cloned as needed parts of the abo
 - data: input vector files for ground truth and building data.  
 - superseded: out-of-date notebooks for some abandoned methods.  
 
+An initially proposed main methodology workflow is illustrated as below, which will be updated as we are moving away from GSV and RICS data and using lidar and panorama images newly collected by Woolpert:
+![workflow](methodology-main_investigation_updated.jpg)  
+
 **Note:** This repo uses conda and pip to manage python environment dependencies specified in the environment.yml file. Other project metadata are included in the [pyproject.toml](pyproject.toml) file. In the future the dependencies list in the .yml file may be moved into the .toml file.  
 
 ## Setting up the environment to run the code
