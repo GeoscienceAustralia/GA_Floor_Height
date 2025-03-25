@@ -22,31 +22,33 @@ def calculate_bearing(lat_c, lon_c, lat_house, lon_house):
     # Calculate bearing angle β_house in radians
     beta_house = math.atan2(X, Y)
     
+    # Normalize to [0, 2π) before returning
+    if beta_house < 0:
+        beta_house += 2 * math.pi
     return beta_house
 
 def calculate_horizontal_pixel(beta_house_deg, beta_yaw_deg, Wim):
     """
-    Calculate the horizontal pixel px of the house
-    
-    Parameters:
-        beta_house_deg (float): Bearing angle from the camera to the house in degrees.
-        beta_yaw_deg (float): Yaw/bearing angle of the camera in degrees.
-        Wim (int): Width of the panorama in pixels.
-    
-    Returns:
-        float: Horizontal pixel position px.
+    Correctly maps bearing to pixels where:
+    - px=0 = left edge
+    - px=Wim-1 = right edge
+    - Camera heading points to center (Wim/2)
     """
-    # Normalize angles to [0, 360)
+    # Normalize angles to [0°, 360°)
     beta_house_deg = beta_house_deg % 360
     beta_yaw_deg = beta_yaw_deg % 360
     
-    # Calculate the shortest angle difference (mod 360 ensures wrapping)
+    # Calculate angle difference [-180°, 180°]
     delta_beta = (beta_house_deg - beta_yaw_deg + 180) % 360 - 180
     
-    # Calculate the horizontal pixel px based on the bearing angle
-    px = (Wim / 2) + (delta_beta / 180) * (Wim / 2)
+    # Convert to pixel position (0° at center, -180° at left edge, +180° at right edge)
+    px = (delta_beta / 360) * Wim + (Wim / 2)
     
-    return px
+    # Wrap around and clamp
+    px = px % Wim
+    px = min(max(0, px), Wim - 1)
+    
+    return int(round(px))
 
 def localize_house_in_panorama(lat_c, lon_c, lat_house, lon_house, beta_yaw_deg, Wim, angle_extend=30):
     """
@@ -78,7 +80,11 @@ def localize_house_in_panorama(lat_c, lon_c, lat_house, lon_house, beta_yaw_deg,
     px_house = calculate_horizontal_pixel(beta_house_deg, beta_yaw_deg, Wim)
     
     # Determine the possible front door location range ± angle_extend degrees from β_house
-    front_door_range = (beta_house_deg - angle_extend, beta_house_deg + angle_extend)
+    # Calculate bearing range (normalized to [0°, 360°))
+    front_door_range = (
+        (beta_house_deg - angle_extend) % 360,
+        (beta_house_deg + angle_extend) % 360
+    )
     px_house_range = (calculate_horizontal_pixel(front_door_range[0],beta_yaw_deg,Wim),
                       calculate_horizontal_pixel(front_door_range[1],beta_yaw_deg,Wim))
     
