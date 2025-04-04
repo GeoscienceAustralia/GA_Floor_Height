@@ -5,6 +5,7 @@ import pdal
 from scipy import ndimage
 from skimage.transform import resize
 from scipy.ndimage import map_coordinates, generic_filter
+import json
 
 def project_las_to_equirectangular( input_las, camera_pos=[0, 0, 0], camera_angles=[0, 0, 0], 
                                    width=2048, height=1024, nodata_float=9999, nodata_int=255):
@@ -222,6 +223,73 @@ def resize_preserve_nans(arr, target_height, target_width, nodata_value=9999):
     resized_data[~resized_mask] = nodata_value
     
     return resized_data
+
+def process_extract_ground_elevations(las_file_path, resolution, crs, output_tiff=None):
+    """
+    Apply filtering to remove outliers of ground points and extract elevation stats.
+    """
+    pipeline_steps=[
+        {
+            "type": "readers.las",
+            "filename": las_file_path
+        },
+        {
+            "type": "filters.range",
+            "limits": "Classification[2:2]"  # Ground points only
+        },
+        # default outliers removal (statistical)
+        {
+            "type": "filters.outlier"
+        },
+        # Cloth Simulation Filter (CSF) filtering: removing flying objects
+        {
+            "type": "filters.csf", 
+            "ignore": "Classification[7:7]",  # Ignore noise class if present
+            "resolution": 1,                   
+            "hdiff": 0.5,                    
+            "smooth": False
+        },
+        # Kee only ground points
+        {
+            "type": "filters.range",
+            "limits": "Classification[2:2]"
+        }]
+    
+    if output_tiff is not None:
+        pipeline_steps.append(
+            {
+                "type": "writers.gdal",
+                "filename": output_tiff,
+                "dimension": "Z",  # Export elevation values
+                "output_type": "idw",  # Inverse Distance Weighting
+                "resolution": resolution,
+                "gdaldriver": "GTiff",
+                "data_type": "float32",
+                "nodata": -9999,
+                "override_srs": crs  # Explicitly set output CRS
+            })
+    # Main processing pipeline
+    pipeline_json = {"pipeline": pipeline_steps}
+    pipeline = pdal.Pipeline(json.dumps(pipeline_json))
+    pipeline.execute()
+
+    # Get the processed ground points as a numpy array
+    ground_points = pipeline.arrays[0]
+
+    # Extract Z values (elevations)
+    elevations = ground_points['Z']
+
+    # Calculate statistics
+    stats = {
+        'lidar_elev_mean': np.mean(elevations),
+        'lidar_elev_med': np.median(elevations),
+        'lidar_elev_min': np.min(elevations),
+        'lidar_elev_max': np.max(elevations),
+        'lidar_elev_std': np.std(elevations),
+        'lidar_elev_25pct': np.percentile(elevations, 25),
+        'lidar_elev_75pct': np.percentile(elevations, 75)
+    }
+    return stats
 
 def remove_noise(points, eps, min_samples):
     """
