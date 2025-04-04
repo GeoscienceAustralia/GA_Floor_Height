@@ -170,7 +170,7 @@ def fill_small_nans(arr, max_hole_size=10, nodata_value=9999):
     print(f"Final nodata count: {np.sum(filled == nodata_value)}")
     return filled
 
-def resize_preserve_nans(arr, target_height, target_width, nodata_value=9999):
+def resize_preserve_nans(arr, target_height, target_width, order=1, nodata_value=9999):
     """
     Resizes an array while preserving NoData regions, preventing artifacts at edges.
     """
@@ -202,18 +202,16 @@ def resize_preserve_nans(arr, target_height, target_width, nodata_value=9999):
     edge_zone = dist_to_nodata <= 1  # Pixels adjacent to nodata
 
     # Interpolate main data
-    # resized_data = map_coordinates(arr_filled, coords, order=1, cval=0)
-    resized_data = map_coordinates(arr, coords, order=1, cval=nodata_value)
+    resized_data = map_coordinates(arr, coords, order=order, cval=nodata_value)
     resized_data = resized_data.reshape((target_height, target_width))
 
     # For edge pixels, use nearest-neighbor to prevent bleeding
     if np.any(edge_zone):
-        # edge_data = map_coordinates(arr_filled, coords, order=0, cval=0)
         edge_data = map_coordinates(arr, coords, order=0, cval=nodata_value)
         edge_data = edge_data.reshape((target_height, target_width))
         
         # Find where original edge pixels map to in output
-        edge_coverage = map_coordinates(edge_zone.astype(float), coords, order=1)
+        edge_coverage = map_coordinates(edge_zone.astype(float), coords, order=order)
         edge_coverage = edge_coverage.reshape((target_height, target_width)) > 0.1
         
         # Use nearest-neighbor result for edge-affected areas
