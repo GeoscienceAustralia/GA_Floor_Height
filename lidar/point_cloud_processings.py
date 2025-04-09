@@ -4,8 +4,273 @@ import numpy as np
 import pdal
 from scipy import ndimage
 from skimage.transform import resize
-from scipy.ndimage import map_coordinates, generic_filter
+from scipy.ndimage import map_coordinates, generic_filter, label, generate_binary_structure
 import json
+import pandas as pd
+
+def calculate_gapfill_depth(depth_arr, classification_arr,nodata_depth=9999):
+    # Create mask of all valid pixels in entire array
+    full_mask = depth_arr != nodata_depth
+    if not np.any(full_mask):
+        return nodata_depth  # no valid pixels in entire image
+    # create mask of building pixels
+    building_mask=(classification_arr==6)&(depth_arr != nodata_depth)
+    gapfill_depth=np.mean(depth_arr[building_mask])
+    return gapfill_depth
+
+def extract_interpolate(x, y, arr, nodata=9999, search_radius=20):
+    """Inverse-distance weighted interpolation using valid pixels within a radius.
+    If no valid pixels within radius, use the closest valid pixel value."""
+    h, w = arr.shape
+    xi, yi = int(round(x)), int(round(y))
+    
+    # Define window bounds for initial search
+    x0, x1 = max(xi - search_radius, 0), min(xi + search_radius + 1, w)
+    y0, y1 = max(yi - search_radius, 0), min(yi + search_radius + 1, h)
+    window = arr[y0:y1, x0:x1]
+
+     # Create coordinate grids
+    yy, xx = np.meshgrid(np.arange(y0, y1), np.arange(x0, x1), indexing='ij')
+    mask = window != nodata
+    if not np.any(mask):
+        # Create mask of all valid pixels in entire array
+        full_mask = arr != nodata
+        if not np.any(full_mask):
+            return nodata  # no valid pixels in entire image
+        
+        # Find all valid pixel coordinates and values
+        valid_y, valid_x = np.where(full_mask)
+        valid_values = arr[valid_y, valid_x]
+        
+        # Calculate distances to all valid pixels
+        dists = np.sqrt((valid_x - x)**2 + (valid_y - y)**2)
+        
+        # Return the value of the closest pixel
+        closest_idx = np.argmin(dists)
+        return valid_values[closest_idx]
+    # Perform IDW interpolation with valid pixels in window
+    dists = np.sqrt((xx[mask] - x)**2 + (yy[mask] - y)**2)
+    values = window[mask]
+    weights = 1 / (dists + 1e-6)  # avoid divide-by-zero
+    return np.sum(weights * values) / np.sum(weights)
+
+def calculate_width_difference(left_pixel, right_pixel, depth_map, width_pano=11000, search_radius=20, nodata=9999):
+    """Calculate real-world horizontal distance between two pixels using depth map"""
+
+    # extract depth
+    (xL, yL), (xR, yR) = left_pixel, right_pixel
+    depthL, depthR = depth_map[yL, xL], depth_map[yR, xR]
+    # print('depths before depth interpolation ',depthL,depthR)
+
+    # interpolate depth values if invalid
+    depthL = extract_interpolate(x=xL, y=yL, arr=depth_map, nodata=nodata, search_radius=search_radius) if depthL == nodata else depthL
+    depthR = extract_interpolate(x=xR, y=yR, arr=depth_map, nodata=nodata, search_radius=search_radius) if depthR == nodata else depthR
+    # print('depths after depth interpolation ',depthL,depthR)
+    if (depthL is None) or (depthR is None):
+        return None
+    
+    # calculate real world width
+    W_img = depth_map.shape[1]
+    angle_extend = W_img*180.0/width_pano
+    phi = lambda x: np.radians((2 * x / W_img - 1) * (angle_extend / 2))
+    # print('phi ',phi)
+    x1, z1 = depthL * np.sin(phi(xL)), depthL * np.cos(phi(xL))
+    x2, z2 = depthR * np.sin(phi(xR)), depthR * np.cos(phi(xR))
+
+    return np.hypot(x2 - x1, z2 - z1)
+
+def calculate_height_difference(top_pixels, bottom_pixels, elevation_map, gapfill_depth,height_pano=5500, upper_crop=0.25, nodata=9999):
+    """Calculate real-world horizontal distance between two pixels using elevation and depth maps"""
+    # extract elevations
+    (xT, yT), (xB, yB) = top_pixels, bottom_pixels
+    elevationT, elevationB = elevation_map[yT, xT], elevation_map[yB, xB]
+    # if invalid, use gapfilling depth and approximate
+    if (elevationT==nodata) or (elevationB==nodata):
+        # print('using gapfilling depth')
+        # original y coordinate before cropping
+        yT_origin=yT+height_pano*upper_crop
+        theta_T = np.radians((height_pano/2.0-yT_origin)*(180.0/height_pano))
+        yB_origin=yB+height_pano*upper_crop
+        theta_B = np.radians((height_pano/2.0-yB_origin)*(180.0/height_pano))
+        return gapfill_depth*(np.sin(theta_T)-np.sin(theta_B))
+    height_difference=elevationT-elevationB
+    return height_difference
+
+def compute_feature_properties(row, elevation_arr, depth_arr, gapfill_depth, nodata=9999):
+    """Calculate dimension metrics of detected features"""
+
+    # calculate average pixels of each boundary
+    img_height=elevation_arr.shape[0]
+    img_width=elevation_arr.shape[1]
+    mean_top =(int(np.mean([row['x1'],row['x2']])),int(row['y1']))
+    mean_bottom = (int(np.mean([row['x1'],row['x2']])),int(min(row['y2'],img_height-1)))
+    mean_left = (int(row['x1']),int(np.mean([row['y1'],row['y2']])))
+    mean_right = (int(min(row['x2'],img_width-1)),int(np.mean([row['y1'],row['y2']])))
+
+    # caculate feature top and bottom elevations
+    feature_top=elevation_arr[mean_top[1],mean_top[0]]
+    feature_bottom=elevation_arr[mean_bottom[1],mean_bottom[0]]
+    feature_top=None if feature_top==nodata else feature_top
+    feature_bottom=None if feature_bottom==nodata else feature_bottom
+    # print('feature top elevation:',feature_top)
+    # print('feature bottom elevation:', feature_bottom)
+
+    # calculate feature width
+    feature_width = calculate_width_difference(mean_left, mean_right,depth_map=depth_arr, width_pano=11000, nodata=nodata)
+    # print('feature width',feature_width)
+
+    # calculate feature height
+    feature_height = calculate_height_difference(mean_top, mean_bottom, elevation_map=elevation_arr, gapfill_depth=gapfill_depth, height_pano=5500, nodata=nodata)
+    # print('feature height',feature_height)
+
+    # calculate area and ratio
+    feature_area, dimension_ratio = None, None
+    if (feature_height is not None) and (feature_width is not None):
+        feature_area=feature_height*feature_width
+        dimension_ratio=feature_width/feature_height
+
+    return feature_top, feature_bottom, feature_width, feature_height, feature_area, dimension_ratio
+
+def select_best_feature(df, weights, classes, img_width, img_height, frontdoor_standards):
+    """
+    Select the best feature if multiples are detected
+    """
+    selected_rows = []
+    for feature_class in classes:
+        subset = df[df['class'] == feature_class]
+        if subset.empty:
+            continue
+        if feature_class in ['Foundation', 'Stairs', 'Garage Door']:
+            # Select bottom-most and with highest confidence
+            # best_row = subset.sort_values(by=['y2', 'confidence'], ascending=[False, False]).iloc[0]
+            weighted_diff = (
+                weights['area_m2'] * abs(subset['area_m2'] - frontdoor_standards['area_m2'])/frontdoor_standards['area_m2']+
+                weights['ratio'] * abs(subset['ratio'] - frontdoor_standards['ratio'])/frontdoor_standards['ratio']+
+                weights['confidence'] * subset['confidence']+
+                weights['y_location'] * subset['y2']/img_height
+            )
+            best_row = subset.iloc[np.argmin(weighted_diff)]
+        elif feature_class == 'Front Door':
+            # For Front Door: select closet to standard metrics, with highest confidence and horizontally closest to image centre
+            weighted_diff = (
+                weights['area_m2'] * abs(subset['area_m2'] - frontdoor_standards['area_m2'])/frontdoor_standards['area_m2']+
+                weights['ratio'] * abs(subset['ratio'] - frontdoor_standards['ratio'])/frontdoor_standards['ratio']+
+                weights['confidence'] * subset['confidence']+
+                weights['x_location'] * abs(img_width-(subset['x2']-subset['x1'])/2.0)/img_width
+                
+            )
+            best_row = subset.iloc[np.argmin(weighted_diff)]
+        selected_rows.append(best_row)
+    
+    return pd.DataFrame(selected_rows)
+
+def get_closest_ground_to_feature(row, classification_arr, elevation_arr,min_area=5):
+    """
+    Find the elevation of closest ground area to the average position of two points from the same feature.
+    
+    Args:
+        classification_arr: 2D array of classification values
+        elevation_arr: 2D array of elevation values
+        min_area: Minimum area threshold for ground regions
+        
+    Returns:
+        Dictionary with information about the closest ground area to the feature's average position,
+        or None if none found
+    """
+    x1, y1 = int(row['x1']),int(row['y2'])
+    x2, y2 = int(row['x2']),int(row['y2'])
+
+    # Calculate average position of the two points
+    avg_y = int(round((y1 + y2) / 2))
+    avg_x = int(round((x1 + x2) / 2))
+
+    # Label all ground areas (search everywhere)
+    struct = generate_binary_structure(2, 2)
+    labeled_ground, _ = label((classification_arr == 2), structure=struct)
+
+    nearest_ground_elevation = None
+    min_distance = float('inf')
+
+    # Get unique labels in the array (excluding 0)
+    ground_labels = np.unique(labeled_ground)
+    ground_labels = ground_labels[ground_labels != 0]
+
+    for label_id in ground_labels:
+        ground_mask = (labeled_ground == label_id)
+        area_size = np.sum(ground_mask)
+        
+        if area_size >= min_area:
+            # Find closest point in this area to the average position
+            yy, xx = np.where(ground_mask)
+            distances = np.sqrt((yy - avg_y)**2 + (xx - avg_x)**2)
+            idx = np.argmin(distances)
+            current_dist = distances[idx]
+            
+            if current_dist < min_distance:
+                elev_values = elevation_arr[ground_mask]
+                nearest_ground_elevation=np.median(elev_values)
+                min_distance = current_dist
+
+    return nearest_ground_elevation
+
+def estimate_FFH(df_features, ground_elevation_gapfill, max_ffh=2):
+    '''
+    Calculate FFHs using elevations of features and ground elevation values.
+    '''
+    # determine ground elevation: prioritisation garage door>stairs>foundation
+    elev_ground=None
+    df_features_filtered=df_features.dropna(subset=['bottom_elevation'])
+    filtered_classes=df_features_filtered['class'].values
+    # print(filtered_classes)
+    if 'Garage Door' in filtered_classes:
+        elev_ground = df_features_filtered[df_features_filtered['class']=='Garage Door']['bottom_elevation'].values[0]
+    elif 'Stairs' in filtered_classes:
+        elev_ground = df_features_filtered[df_features_filtered['class']=='Stairs']['bottom_elevation'].values[0]
+    elif 'Foundation' in filtered_classes:
+        elev_ground = df_features_filtered[df_features_filtered['class']=='Foundation']['bottom_elevation'].values[0]
+    if elev_ground is None:
+        FFH_1=None
+    # print('elev_ground',elev_ground)
+
+    # determine floor elevation: prioritisation Front Door>stairs>foundation
+    elev_floor=None
+    df_features_filtered=df_features.dropna(subset=['top_elevation'])
+    nearest_ground_elev=None
+    all_classes=df_features['class'].values
+    if 'Front Door' in all_classes:
+        frontdoor_bottom = df_features[df_features['class']=='Front Door']['bottom_elevation'].values[0]
+        if frontdoor_bottom is not None:
+            elev_floor = frontdoor_bottom
+            nearest_ground_elev=df_features[df_features['class']=='Front Door']['nearest_ground_elev'].values[0]
+    else:
+        df_features_filtered=df_features.dropna(subset=['top_elevation'])
+        if 'Stairs' in filtered_classes:
+            elev_floor = df_features_filtered[df_features_filtered['class']=='Stairs']['top_elevation'].values[0]
+            nearest_ground_elev=df_features[df_features['class']=='Stairs']['nearest_ground_elev'].values[0]
+        elif 'Foundation' in filtered_classes:
+            elev_floor = df_features_filtered[df_features_filtered['class']=='Foundation']['top_elevation'].values[0]
+            nearest_ground_elev=df_features[df_features['class']=='Foundation']['nearest_ground_elev'].values[0]
+    if elev_floor is None:
+        FFH_1=None
+    # print('elev_floor',elev_floor)
+
+    # 1. FFH calculated from floor feature(Front Door/stair/foundation) and ground feature (stairs/foundation) - not always available
+    if (elev_floor is not None) and (elev_ground is not None):
+        FFH_1=elev_floor-elev_ground
+    
+    # 2. FFH calculated from floor feature (Front Door/stair/foundation) and ground elevation derived 
+    # from closet ground area (likely available whenever a ground feature is detected)
+    FFH_2=None
+    if elev_floor is not None:
+        if nearest_ground_elev is not None:
+            FFH_2=elev_floor-nearest_ground_elev
+    
+    # 3. FFH calculated from floor feature (Front Door/stair/foundation) and ground elevation derived 
+    # from DTM (available whenever a ground feature is detected)
+    FFH_3 = None
+    if (elev_floor is not None) and (ground_elevation_gapfill is not None):
+        FFH_3 = elev_floor - ground_elevation_gapfill
+    return FFH_1, FFH_2, FFH_3
 
 def project_las_to_equirectangular( input_las, camera_pos=[0, 0, 0], camera_angles=[0, 0, 0], 
                                    width=2048, height=1024, nodata_float=9999, nodata_int=255):
@@ -54,7 +319,8 @@ def project_las_to_equirectangular( input_las, camera_pos=[0, 0, 0], camera_angl
         [np.sin(yaw_rad), np.cos(yaw_rad), 0],
         [0, 0, 1]
     ])
-    R_total = R_heading @ R_pitch @ R_roll  # Intrinsic XYZ order
+    # R_total = R_heading @ R_pitch @ R_roll  # Intrinsic XYZ order
+    R_total = R_heading @ R_roll @ R_pitch   # Intrinsic XYZ order
 
     # Apply rotation
     coords = np.vstack([x, y, z])
