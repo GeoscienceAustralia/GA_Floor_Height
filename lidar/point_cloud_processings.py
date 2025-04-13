@@ -257,6 +257,8 @@ def estimate_FFH(df_features, ground_elevation_gapfill, max_ffh=2):
     # 1. FFH calculated from floor feature(Front Door/stair/foundation) and ground feature (stairs/foundation) - not always available
     if (elev_floor is not None) and (elev_ground is not None):
         FFH_1=elev_floor-elev_ground
+        if FFH_1<0:
+            FFH_1=0
     
     # 2. FFH calculated from floor feature (Front Door/stair/foundation) and ground elevation derived 
     # from closet ground area (likely available whenever a ground feature is detected)
