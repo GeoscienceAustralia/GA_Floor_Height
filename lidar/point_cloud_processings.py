@@ -213,7 +213,7 @@ def get_closest_ground_to_feature(row, classification_arr, elevation_arr,min_are
 
     return nearest_ground_elevation
 
-def estimate_FFH(df_features, ground_elevation_gapfill, max_ffh=2):
+def estimate_FFH(df_features, ground_elevation_gapfill, min_ffh=0, max_ffh=1.5):
     '''
     Calculate FFHs using elevations of features and ground elevation values.
     '''
@@ -257,8 +257,8 @@ def estimate_FFH(df_features, ground_elevation_gapfill, max_ffh=2):
     # 1. FFH calculated from floor feature(Front Door/stair/foundation) and ground feature (stairs/foundation) - not always available
     if (elev_floor is not None) and (elev_ground is not None):
         FFH_1=elev_floor-elev_ground
-        if FFH_1<0:
-            FFH_1=0
+        if FFH_1<min_ffh or FFH_1>max_ffh:
+            FFH_1=None
     
     # 2. FFH calculated from floor feature (Front Door/stair/foundation) and ground elevation derived 
     # from closet ground area (likely available whenever a ground feature is detected)
@@ -266,12 +266,15 @@ def estimate_FFH(df_features, ground_elevation_gapfill, max_ffh=2):
     if elev_floor is not None:
         if nearest_ground_elev is not None:
             FFH_2=elev_floor-nearest_ground_elev
-    
+    if FFH_2<min_ffh or FFH_2>max_ffh:
+            FFH_2=None
     # 3. FFH calculated from floor feature (Front Door/stair/foundation) and ground elevation derived 
     # from DTM (available whenever a ground feature is detected)
     FFH_3 = None
     if (elev_floor is not None) and (ground_elevation_gapfill is not None):
         FFH_3 = elev_floor - ground_elevation_gapfill
+    if FFH_3<min_ffh or FFH_3>max_ffh:
+            FFH_3=None
     return FFH_1, FFH_2, FFH_3
 
 def project_las_to_equirectangular( input_las, camera_pos=[0, 0, 0], camera_angles=[0, 0, 0], 
