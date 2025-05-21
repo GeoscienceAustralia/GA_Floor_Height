@@ -1,0 +1,132 @@
+[project]
+name = "floor-heights"
+version = "0.1.0"
+description = "Estimating building first floor heights using panoramic imagery, LiDAR and ML"
+requires-python = ">=3.12"
+authors = [
+    {name = "Benjamin Tebbutt", email = "btebbutt@frontiersi.com.au"},
+    {name = "Lavender Liu", email = "lliu@frontiersi.com.au"}
+]
+dependencies = [
+    "boto3>=1.38.13",
+    "diskcache>=5.6.3",
+    "fiona>=1.10.1",
+    "folium>=0.19.5",
+    "geoalchemy2>=0.17.1",
+    "geopandas>=1.0.1",
+    "ipykernel>=6.29.5",
+    "loguru>=0.7.3",
+    "matplotlib>=3.10.3",
+    "pandas>=2.2.3",
+    # "pdal",  # Commented out as optional - requires system PDAL installation
+    "polars>=1.29.0",
+    "psycopg2-binary>=2.9.10",
+    "pyarrow>=20.0.0",
+    "python-dotenv>=1.1.0",
+    "pyyaml>=6.0.2",
+    "rich>=14.0.0",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.15.3",
+    "shapely>=2.1.0",
+    "sqlalchemy>=2.0.40",
+    "tabulate>=0.9.0",
+    "tqdm>=4.67.1",
+]
+
+[project.optional-dependencies]
+lidar = ["pdal"]  # Requires system PDAL C++ library
+dev = [
+    "hypothesis>=6.131.15",
+    "mypy>=1.15.0",
+    "pandas-stubs>=2.2.3.250308",
+    "pre-commit>=4.2.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.10",
+    "types-boto3>=1.38.18",
+    "types-pytz>=2025.2.0.20250516",
+    "types-pyyaml>=6.0.12.20250516",
+    "types-tabulate>=0.9.0.20241207",
+    "types-tqdm>=4.67.0.20250516",
+]
+
+[project.scripts]
+floor-heights = "floor_heights.main:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+package-data = {"floor_heights" = ["py.typed"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+indent-width = 4
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "migrations",
+    "data",
+    "*.egg-info",
+]
+include = ["*.py", "*.pyi", "pyproject.toml"]
+show-fixes = true
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # Ruff-specific rules
+    "PERF",   # perflint
+]
+ignore = [
+    "E501",    # Line too long (let formatter handle)
+    "B008",    # Do not perform function calls in argument defaults
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "F401",  # Unused imports (for fixtures)
+    "F811",  # Redefinition of unused (for fixtures)
+]
+"__init__.py" = ["F401", "E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+skip-magic-trailing-comma = false
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+namespace_packages = true
+explicit_package_bases = true

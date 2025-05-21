@@ -1,0 +1,129 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.python-version
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Environment
+.env
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.mypy_cache/
+.ruff_cache/
+
+# GIS Data
+*.tif
+*.tiff
+*.asc
+*.dem
+*.dt*
+*.las
+*.laz
+*.copc.laz
+*.hgt
+*.geotiff
+*.geotif
+*.img
+*.mbtiles
+*.pbf
+*.osm
+*.jpg
+*.jpeg
+*.png
+
+# Vector data formats
+*.gpkg
+*.shp
+*.shx
+*.dbf
+*.prj
+*.sbn
+*.sbx
+*.cpg
+*.xml
+*.atx
+
+# Data formats
+*.parquet
+*.arrow
+*.feather
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+
+# Large files
+*.zip
+*.tar.gz
+*.tar
+*.7z
+*.rar
+*.csv
+
+# Temp files
+tmp/
+temp/
+.~lock.*
+
+# Log files
+*.log
+
+# Database files
+*.dump
+*.backup
+*.sql
+!/sql/*.sql
+
+# Output and data directories
+output/
+data/
+
+# Locks
+uv.lock
+
+# Exceptions - allow test fixtures and resources
+!tests/fixtures/
+!tests/data/
+!tests/resources/

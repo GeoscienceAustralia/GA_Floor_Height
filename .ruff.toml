@@ -1,0 +1,10 @@
+# Additional Ruff settings that may vary by developer
+# This file can be used to override settings from pyproject.toml locally
+
+# Example local overrides (uncomment to use):
+# line-length = 100  # If you prefer shorter lines locally
+# target-version = "py312"  # If running on older Python
+
+# During refactoring, you might want to temporarily ignore more rules:
+# [lint]
+# extend-ignore = ["F401", "E402"]  # Temporarily ignore imports while refactoring
