@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgis/postgis:15-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: floor_heights
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # 1. Checkout code
+      - uses: actions/checkout@v4
+
+      # 2. System deps (Conda/Mamba)
+      - name: Set up micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: environment.yml
+          environment-name: floor-heights
+          cache-environment: true
+          cache-downloads: true
+
+      # 3. Python deps (UV)
+      - name: Install uv & wheel cache
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
+
+      - name: Sync Python deps
+        run: |
+          micromamba run -n floor-heights uv pip install --system -e .
+          micromamba run -n floor-heights uv pip install --system pytest pytest-cov ruff mypy
+
+      # 4. Linting and type checking
+      - name: Lint with Ruff
+        run: |
+          micromamba run -n floor-heights uv run ruff check
+          micromamba run -n floor-heights uv run ruff format --check
+
+      - name: Type check with mypy
+        run: |
+          micromamba run -n floor-heights uv run mypy .
+
+      # 5. Initialize database if needed
+      - name: Initialize database schema
+        if: ${{ job.services.postgres }}
+        env:
+          DB_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/floor_heights
+        run: |
+          # Initialize PostGIS extension
+          PGPASSWORD=postgres psql -h localhost -U postgres -d floor_heights -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+          
+          # Run any schema setup if tests expect tables to exist
+          if [ -d "./sql" ]; then
+            for f in ./sql/*.sql; do
+              PGPASSWORD=postgres psql -h localhost -U postgres -d floor_heights -f "$f"
+            done
+          fi
+
+
+      # 6. Prune UV cache
+      - run: micromamba run -n floor-heights uv cache prune --ci
+
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: floor-heights:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Test image
+        run: |
+          docker run --rm floor-heights:test python -c "import floor_heights; print(f'Successfully imported floor_heights {floor_heights.__version__}')"

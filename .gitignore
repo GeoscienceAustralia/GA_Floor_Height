@@ -120,8 +120,8 @@ temp/
 output/
 data/
 
-# Locks
-uv.lock
+# Locks - keep uv.lock tracked for reproducible builds
+# uv.lock is INTENTIONALLY NOT ignored to ensure reproducible builds
 
 # Exceptions - allow test fixtures and resources
 !tests/fixtures/

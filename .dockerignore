@@ -8,9 +8,12 @@ output/
 **/*.las
 **/__pycache__/
 **/.pytest_cache/
-
+*.pyc
 .venv/
 .env
+__pypackages__/
+.mypy_cache/
+.ruf_cache/
 
 .git/
 .github/
