@@ -26,4 +26,5 @@ repos:
           pandas-stubs,
           types-Pillow,
           types-boto3,
+          sqlalchemy,
         ]

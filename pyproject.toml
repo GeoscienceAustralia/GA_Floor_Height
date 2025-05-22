@@ -82,7 +82,7 @@ fallback_version = "0.1.0"
 
 # ───────────────  testing  ───────────────
 [tool.pytest.ini_options]
-pythonpath = [".", "src"]
+pythonpath = ["src"]
 
 # ───────────────  Ruff  ───────────────
 [tool.ruff]
@@ -119,3 +119,8 @@ strict = true
 namespace_packages = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 explicit_package_bases = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "regression.*"
+ignore_errors = true

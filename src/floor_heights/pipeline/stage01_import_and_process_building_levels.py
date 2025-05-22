@@ -25,9 +25,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 
-DB = os.getenv("DB_CONNECTION_STRING")
-if not DB:
+_db = os.getenv("DB_CONNECTION_STRING")
+if _db is None:
     raise ValueError("DB_CONNECTION_STRING environment variable is required")
+DB: str = _db
 
 
 def select_core(

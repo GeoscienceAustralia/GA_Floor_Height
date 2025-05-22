@@ -18,6 +18,7 @@ import warnings
 
 import geopandas as gpd
 import pandas as pd
+import shapely.geometry as sg
 import yaml
 from PIL import Image
 from geoalchemy2 import Geometry
@@ -87,6 +88,9 @@ def _chosen_views(region: str) -> gpd.GeoDataFrame:
         _tbl_views.c.building_id,
         _tbl_views.c.pano_id,
         _tbl_views.c.geom,
+        _tbl_views.c.view_type,
+        _tbl_views.c.edge_idx,
+        _tbl_views.c.angle,
     ).where(_tbl_views.c.region == region, _tbl_views.c.is_chosen.is_(True))
 
     with engine.connect() as cn:
@@ -123,6 +127,13 @@ def _building_centroids(bids: Iterable[int]) -> pd.DataFrame:
     return pd.concat([df.drop(columns="wkt"), coords], axis=1).set_index("building_id")
 
 
+def _extract_edge_midpoint(ray_geom: sg.LineString) -> tuple[float, float]:
+    """Extract edge midpoint (end point) from viewing ray."""
+    coords = list(ray_geom.coords)
+    # Ray goes from panorama to edge midpoint, so last point is edge midpoint
+    return coords[-1][1], coords[-1][0]  # lat, lon
+
+
 def _horizontal_range(
     *,
     pano_lat: float,
@@ -131,15 +142,32 @@ def _horizontal_range(
     bldg_lon: float,
     heading: float,
     width: int,
+    view_type: str = "direct",
+    ray_geom: sg.LineString | None = None,
 ) -> tuple[float, float]:
+    # For oblique views, use edge midpoint from ray instead of building centroid
+    if view_type != "direct" and ray_geom is not None:
+        edge_lat, edge_lon = _extract_edge_midpoint(ray_geom)
+        target_lat, target_lon = edge_lat, edge_lon
+        # Use smaller angle extend for oblique views to avoid over-clipping
+        angle_extend = 20.0 if "oblique" in view_type else ANGLE_EXTEND
+        logger.debug(
+            f"Using edge-based clipping for {view_type} view: "
+            f"edge=({edge_lat:.6f}, {edge_lon:.6f}), "
+            f"centroid=({bldg_lat:.6f}, {bldg_lon:.6f})"
+        )
+    else:
+        target_lat, target_lon = bldg_lat, bldg_lon
+        angle_extend = ANGLE_EXTEND
+
     info: Mapping[str, tuple[float, float]] = geo.localize_house_in_panorama(
         lat_c=pano_lat,
         lon_c=pano_lon,
-        lat_house=bldg_lat,
-        lon_house=bldg_lon,
+        lat_house=target_lat,
+        lon_house=target_lon,
         beta_yaw_deg=heading,
         Wim=width,
-        angle_extend=ANGLE_EXTEND,
+        angle_extend=angle_extend,
     )
     range_data = info["horizontal_pixel_range_house"]
     return (float(range_data[0]), float(range_data[1]))
@@ -183,6 +211,8 @@ def _clip_row(region: str, row: pd.Series) -> ClipResult:
             bldg_lon=row.bldg_lon,
             heading=row.pano_heading,
             width=img.width,
+            view_type=row.get("view_type", "direct"),
+            ray_geom=row.get("geom"),
         )
         clip = _crop(img, h_range)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -229,6 +259,15 @@ def _run_region(region: str) -> None:
         status: len([r for r in results if r.status == status])
         for status in ["success", "skip", "missing", "clip_fail", "fail"]
     }
+
+    # Count view types processed
+    view_type_counts = (
+        df.view_type.value_counts().to_dict() if "view_type" in df.columns else {}
+    )
+    if view_type_counts:
+        logger.info(
+            f"{region} view types: {', '.join(f'{k}={v}' for k, v in view_type_counts.items())}"
+        )
 
     if success_results:
         gdf = gpd.GeoDataFrame(

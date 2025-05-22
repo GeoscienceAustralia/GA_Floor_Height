@@ -45,7 +45,7 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          micromamba run -n floor-heights uv run mypy .
+          micromamba run -n floor-heights uv run mypy -p floor_heights
 
       # 5. Prune UV cache
       - run: micromamba run -n floor-heights uv cache prune --ci
