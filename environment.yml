@@ -5,5 +5,9 @@ dependencies:
   - gdal                 # pulls libgdal, proj, geos
   - proj-data
   - pdal
+  - fiona                # geospatial I/O
+  - geopandas            # geospatial dataframes
+  - shapely              # geometric operations
+  - pyproj               # coordinate transformations
   - libpq                # psycopg wheels link against this
   # add cuda / cudnn here if you train on-GPU

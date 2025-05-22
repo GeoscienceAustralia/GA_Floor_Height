@@ -16,10 +16,8 @@ authors = [
 dependencies = [
   "boto3>=1.38,<2",
   "diskcache>=5.6,<6",
-  "fiona>=1.10,<2",
   "folium>=0.19,<1",
   "geoalchemy2>=0.17,<1",
-  "geopandas>=1.0,<2",
   "loguru>=0.7,<1",
   "matplotlib>=3.10,<4",
   "pandas>=2.2,<3",
@@ -31,10 +29,9 @@ dependencies = [
   "rich>=14,<15",
   "scikit-learn>=1.6,<1.7",
   "scipy>=1.15,<2",
-  "shapely>=2.1,<3",
   "sqlalchemy>=2.0,<3",
   "tabulate>=0.9,<1",
-  "tqdm>=4.67,<5"
+  "tqdm>=4.67,<5",
 ]
 
 # ───────────────  optional extras  ───────────────
@@ -80,7 +77,8 @@ where = ["src"]
 
 # ───────────────  setuptools_scm for Git-based versioning  ───────────────
 [tool.setuptools_scm]
-write_to = "src/floor_heights/_version.py"
+# Don't write version files in Docker - use runtime discovery instead
+fallback_version = "0.1.0"
 
 # ───────────────  testing  ───────────────
 [tool.pytest.ini_options]

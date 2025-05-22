@@ -11,32 +11,21 @@ RUN micromamba install -y -n base -f environment.yml && \
     micromamba clean --all --yes
 
 # ---------- 2. install uv (stand‑alone binary) --------------------
-RUN micromamba install -y -n base -c conda-forge curl && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    micromamba clean --all --yes  
-ENV PATH="/root/.local/bin:${PATH}"
+RUN micromamba run -n base pip install uv
+ENV PATH="/opt/conda/bin:${PATH}"
+ENV UV_SYSTEM_PYTHON=1
+ENV CONDA_PREFIX=/opt/conda
 
 # ---------- 3. cacheable layer: Python deps (no project code) -----
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --locked --all-extras --no-install-project --compile-bytecode
+RUN uv sync --locked --no-install-project --compile-bytecode
 
 # ---------- 4. copy source & install project itself --------------
-COPY src/    ./src
-COPY config/ ./config
-RUN uv sync --locked --no-dev --compile-bytecode
-
-# ---------- 5. non‑root user -------------------------------------
-ARG HOST_UID=1000
-ARG HOST_GID=1000
-RUN chown -R ${HOST_UID}:${HOST_GID} /app && \
-    set -eux; \
-    if ! getent group "${HOST_GID}" >/dev/null; then \
-        groupadd -g "${HOST_GID}" appgroup; \
-    fi; \
-    if ! getent passwd "${HOST_UID}" >/dev/null; then \
-        useradd -m -u "${HOST_UID}" -g "${HOST_GID}" appuser; \
-    fi
-USER ${HOST_UID}:${HOST_GID}
+COPY src/ ./src
+COPY config/ ./config  
+RUN mkdir -p /tmp/build && cp -r /app/* /tmp/build/ && \
+    cd /tmp/build && uv sync --locked --no-dev --no-editable --compile-bytecode && \
+    cp -r .venv /app/
 
 # ---------- 6. runtime environment vars --------------------------
 ENV PYTHONUNBUFFERED=1 \
@@ -47,5 +36,5 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1
 
 # ---------- 7. entry‑point ---------------------------------------
-ENTRYPOINT ["uv", "run", "--"]
-CMD ["python", "-m", "floor_heights.main"]
+ENTRYPOINT ["/app/.venv/bin/python", "-m"]
+CMD ["floor_heights.main"]
