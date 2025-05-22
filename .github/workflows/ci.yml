@@ -31,7 +31,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          cache-key: ${{ runner.os }}-uv-${{ hashFiles('pyproject.toml') }}
 
       - name: Sync Python deps
         run: |

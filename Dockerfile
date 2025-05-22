@@ -11,7 +11,9 @@ RUN micromamba install -y -n base -f environment.yml && \
     micromamba clean --all --yes
 
 # ---------- 2. install uv (stand‑alone binary) --------------------
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN micromamba install -y -n base -c conda-forge curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    micromamba clean --all --yes  
 ENV PATH="/root/.local/bin:${PATH}"
 
 # ---------- 3. cacheable layer: Python deps (no project code) -----
