@@ -1,8 +1,7 @@
-# Launceston data is also Zone 55 – EPSG 28355
 crs: 28355
 
 column_mappings:
-  floor_level_m:  LCC_FLOOR       # (or NEXIS_FLOO – choose whichever is correct)
+  floor_level_m:  LCC_FLOOR
   ground_level_m: Survey_Grd
-  property_type:  USE             # broad land-use / property category
+  property_type:  USE
   wall_material:  LOCAL_WALL
