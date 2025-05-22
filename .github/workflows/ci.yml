@@ -34,8 +34,7 @@ jobs:
 
       - name: Sync Python deps
         run: |
-          micromamba run -n floor-heights uv pip install --system -e .
-          micromamba run -n floor-heights uv pip install --system pytest pytest-cov ruff mypy
+          micromamba run -n floor-heights uv pip install --system -e .[dev]
 
       # 4. Linting and type checking
       - name: Lint with Ruff
@@ -45,7 +44,7 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          micromamba run -n floor-heights uv run mypy .
+          cd src && micromamba run -n floor-heights uv run mypy floor_heights
 
       # 5. Prune UV cache
       - run: micromamba run -n floor-heights uv cache prune --ci
