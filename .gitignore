@@ -119,8 +119,6 @@ temp/
 # Output and data directories
 output/
 data/
-refactor/
-regression/
 
 # Locks - keep uv.lock tracked for reproducible builds
 # uv.lock is INTENTIONALLY NOT ignored to ensure reproducible builds
