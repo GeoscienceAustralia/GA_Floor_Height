@@ -13,21 +13,6 @@ jobs:
     permissions:
       contents: read
 
-    services:
-      postgres:
-        image: postgis/postgis:15-3.4
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: floor_heights
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       # 1. Checkout code
       - uses: actions/checkout@v4
@@ -63,24 +48,7 @@ jobs:
         run: |
           micromamba run -n floor-heights uv run mypy .
 
-      # 5. Initialize database if needed
-      - name: Initialize database schema
-        if: ${{ job.services.postgres }}
-        env:
-          DB_CONNECTION_STRING: postgresql://postgres:postgres@localhost:5432/floor_heights
-        run: |
-          # Initialize PostGIS extension
-          PGPASSWORD=postgres psql -h localhost -U postgres -d floor_heights -c "CREATE EXTENSION IF NOT EXISTS postgis;"
-          
-          # Run any schema setup if tests expect tables to exist
-          if [ -d "./sql" ]; then
-            for f in ./sql/*.sql; do
-              PGPASSWORD=postgres psql -h localhost -U postgres -d floor_heights -f "$f"
-            done
-          fi
-
-
-      # 6. Prune UV cache
+      # 5. Prune UV cache
       - run: micromamba run -n floor-heights uv cache prune --ci
 
   build-docker:
