@@ -1,0 +1,9 @@
+# Original shapefile is in MGA Zone 55 (GDA94) – EPSG 28355
+crs: 28355
+
+column_mappings:
+  # canonical → source-field
+  floor_level_m:  Floor_Leve
+  ground_level_m: Ground_Lev
+  property_type:  USAGE            # pick the most helpful field; change if needed
+  wall_material:  WALL_M

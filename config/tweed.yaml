@@ -1,0 +1,8 @@
+# Tweed Heads dataset is MGA Zone 56 – EPSG 28356
+crs: 28356
+
+column_mappings:
+  floor_level_m:  FLOOR_LEVE
+  ground_level_m: SURVEY_POI      # survey point (ground) elevation
+  property_type:  PROPERTY_T
+  wall_material:  MATERIAL
