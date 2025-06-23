@@ -1,7 +1,0 @@
-crs: 28356
-
-column_mappings:
-  floor_level_m:  FLOOR_LEVE
-  ground_level_m: SURVEY_POI
-  property_type:  PROPERTY_T
-  wall_material:  MATERIAL

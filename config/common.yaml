@@ -1,9 +1,0 @@
-output_root: "output"
-
-regions: ["wagga","launceston", "tweed"]
-
-sampling:
-  enabled: False
-  sample_size: 100
-  sample_fraction: 0.1
-  random_seed: 42

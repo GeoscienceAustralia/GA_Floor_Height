@@ -1,7 +1,0 @@
-crs: 28355
-
-column_mappings:
-  floor_level_m:  LCC_FLOOR
-  ground_level_m: Survey_Grd
-  property_type:  USE
-  wall_material:  LOCAL_WALL
