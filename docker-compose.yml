@@ -1,0 +1,21 @@
+services:
+  floor-heights:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: floor-heights:latest
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./.env:/app/.env:ro
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./environment.yml:/app/environment.yml:ro
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FH_DB_PATH=/app/data/floor_heights.duckdb
+    stdin_open: true
+    tty: true
+    command: bash
