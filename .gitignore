@@ -4,6 +4,8 @@ inference_clean/
 scratch/
 output/
 data/
+# Exception for specific GPKG file tracked by Git LFS
+!data/all_aoi_ffh_v5_3a2a2ee6e864.gpkg
 
 # Environment files
 .env
