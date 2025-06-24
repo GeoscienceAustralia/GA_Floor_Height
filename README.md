@@ -27,6 +27,8 @@ AWS_ACCESS_KEY_ID=your_access_key_id
 AWS_SECRET_ACCESS_KEY=your_secret_access_key
 AWS_DEFAULT_REGION=ap-southeast-2
 
+FH_OUTPUT_ROT=/path/to/output/directory
+
 # Optional: Local LiDAR data path (if not using S3)
 FH_LIDAR_DATA_ROOT=/path/to/local/lidar/data
 
@@ -34,7 +36,20 @@ FH_LIDAR_DATA_ROOT=/path/to/local/lidar/data
 FH_DB_PATH=/path/to/database.duckdb
 ```
 
-### 3. Download Required Data
+### 3. Initialize Database
+
+Run the database pipeline to set up the initial data:
+
+```bash
+fh db pipeline
+```
+
+This will:
+- Convert raw spatial data to GeoParquet format
+- Load data into DuckDB database
+- Create necessary tables and indexes
+
+### 4. Download Required Data
 
 Before running the pipeline, download the required trajectory and tileset files:
 
@@ -120,10 +135,6 @@ fh info
 fh db pipeline
 fh db audit
 fh db info
-
-# YOLO model utilities
-fh yolo check
-fh yolo download
 ```
 
 ## Regions
