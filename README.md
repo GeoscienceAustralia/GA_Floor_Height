@@ -27,6 +27,8 @@ AWS_ACCESS_KEY_ID=your_access_key_id
 AWS_SECRET_ACCESS_KEY=your_secret_access_key
 AWS_DEFAULT_REGION=ap-southeast-2
 
+FH_OUTPUT_ROT=/path/to/output/directory
+
 # Optional: Local LiDAR data path (if not using S3)
 FH_LIDAR_DATA_ROOT=/path/to/local/lidar/data
 
@@ -130,13 +132,9 @@ fh check
 fh info
 
 # Database utilities
-fh db pipeline    # Run full database processing pipeline
-fh db audit       # Audit database and generate documentation
-fh db info        # Show database information and statistics
-
-# YOLO model utilities
-fh yolo check
-fh yolo download
+fh db pipeline
+fh db audit
+fh db info
 ```
 
 ## Regions
