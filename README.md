@@ -34,7 +34,20 @@ FH_LIDAR_DATA_ROOT=/path/to/local/lidar/data
 FH_DB_PATH=/path/to/database.duckdb
 ```
 
-### 3. Download Required Data
+### 3. Initialize Database
+
+Run the database pipeline to set up the initial data:
+
+```bash
+fh db pipeline
+```
+
+This will:
+- Convert raw spatial data to GeoParquet format
+- Load data into DuckDB database
+- Create necessary tables and indexes
+
+### 4. Download Required Data
 
 Before running the pipeline, download the required trajectory and tileset files:
 

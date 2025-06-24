@@ -584,7 +584,7 @@ def calculate_combined_score(
 
 
 def process_building_views(
-    row_id: str,
+    row_id: int,
     building_id: str,
     gnaf_id: str,
     region: str,
@@ -598,7 +598,7 @@ def process_building_views(
 
     building_detections = detections_df[detections_df["id"] == row_id]
     if building_detections.empty:
-        return results
+        return results, 0
 
     view_groups = building_detections.groupby(["pano_id", "edge_idx", "view_type"])
 
@@ -827,7 +827,7 @@ def process_region(region: str, workers: int = -1, batch_size: int = 100) -> Non
         for _, row in to_process.iterrows():
             try:
                 building_results, clips_evaluated = process_building_views(
-                    row_id=str(row["id"]),
+                    row_id=row["id"],
                     building_id=str(row["building_id"]),
                     gnaf_id=row["gnaf_id"],
                     region=region,

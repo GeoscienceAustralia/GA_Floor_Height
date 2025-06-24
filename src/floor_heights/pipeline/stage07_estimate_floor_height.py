@@ -135,9 +135,7 @@ def _process_single_building(args_tuple) -> tuple[str, dict[str, Any] | None]:
         gnaf_id = "NO_GNAF"
     panorama_id = building_row["pano_id"]
 
-    unique_id = f"{row_id}_{building_id}_{gnaf_id}"
-
-    if unique_id in processed_set:
+    if row_id in processed_set:
         return ("skip", None)
 
     try:
@@ -146,7 +144,7 @@ def _process_single_building(args_tuple) -> tuple[str, dict[str, Any] | None]:
 
         if building_detections.empty:
             return ("fail", None)
-        ground_elev_mask = ground_elevations_df["unique_id"] == unique_id
+        ground_elev_mask = ground_elevations_df["id"] == row_id
         if not ground_elev_mask.any():
             return ("fail", None)
 
@@ -289,13 +287,6 @@ def process_region(
         return
 
     ground_elevations_df["gnaf_id"] = ground_elevations_df["gnaf_id"].fillna("NO_GNAF")
-    ground_elevations_df["unique_id"] = (
-        ground_elevations_df["id"].astype(str)
-        + "_"
-        + ground_elevations_df["building_id"]
-        + "_"
-        + ground_elevations_df["gnaf_id"]
-    )
 
     logger.info(f"Found {len(ground_elevations_df)} ground elevations")
 
@@ -318,7 +309,7 @@ def process_region(
         if not existing.empty:
             existing["gnaf_id"] = existing["gnaf_id"].fillna("NO_GNAF")
 
-            processed_set = set(existing["id"].astype(str) + "_" + existing["building_id"] + "_" + existing["gnaf_id"])
+            processed_set = set(existing["id"])
             logger.info(f"Found {len(processed_set)} already processed buildings")
 
     if sample:
@@ -361,7 +352,7 @@ def process_region(
                     ):
                         writer.add(
                             Stage07FloorHeightRecord(
-                                id=str(row_data["id"]),
+                                id=row_data["id"],
                                 building_id=row_data["building_id"],
                                 region_name=region.lower(),
                                 gnaf_id=row_data.get("gnaf_id", ""),

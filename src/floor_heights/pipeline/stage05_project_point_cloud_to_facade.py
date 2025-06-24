@@ -353,7 +353,7 @@ def process_region(
                 if status == "success" and projection_data:
                     writer.add(
                         Stage05ProjectionRecord(
-                            id=str(row_data["id"]),
+                            id=row_data["id"],
                             building_id=row_data["building_id"],
                             region_name=region.lower(),
                             gnaf_id=row_data.get("gnaf_id", ""),

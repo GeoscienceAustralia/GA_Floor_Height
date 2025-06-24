@@ -289,7 +289,7 @@ def process_region(
                 if status == "success" and result_data:
                     writer.add(
                         Stage06GroundElevationRecord(
-                            id=str(row_data["id"]),
+                            id=row_data["id"],
                             building_id=row_data["building_id"],
                             region_name=region.lower(),
                             gnaf_id=row_data.get("gnaf_id", ""),
