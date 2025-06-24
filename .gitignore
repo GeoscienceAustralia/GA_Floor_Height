@@ -1,0 +1,109 @@
+# Project specific directories to ignore
+docs/
+inference_clean/
+scratch/
+output/
+data/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python egg-info
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.duckdb
+*.db
+*.sqlite
+*.sqlite3
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data Science specific
+# Datasets
+*.tsv
+*.json
+*.jsonl
+*.parquet
+*.h5
+*.hdf5
+*.xlsx
+*.xls
+
+# Images and media
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.pdf
+*.mp4
+*.avi
+*.mov
+
+# Model files
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pth
+*.ckpt
+*.pb
+*.onnx
+*.tflite
+
+# Weights and checkpoints
+checkpoints/
+models/
+saved_models/
+
+# Logs
+logs/
+*.log
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+notebooks/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pre-commit
+.pre-commit-config.yaml.lock
+.pre-commit-config.local.yaml

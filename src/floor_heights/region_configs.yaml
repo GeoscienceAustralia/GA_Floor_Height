@@ -1,0 +1,33 @@
+launceston:
+  id: "2"
+  crs: 7855
+  crs_source: 28355
+  bbox:
+    xmin: 147.098107
+    ymin: -41.447082
+    xmax: 147.168781
+    ymax: -41.405697
+  tile_index: 03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.shp
+  lidar_prefix: 03_Launceston/02_MLSPointCloud/rev2/
+tweed:
+  id: "3"
+  crs: 7856
+  crs_source: 28356
+  bbox:
+    xmin: 153.502319
+    ymin: -28.221012
+    xmax: 153.550214
+    ymax: -28.171330
+  tile_index: 02_TweedHeads/03_Ancillary/01_TileIndex/rev1/48068_Tweed_Heads_TileSet.shp
+  lidar_prefix: 02_TweedHeads/02_MLSPointCloud/rev2/
+wagga:
+  id: "1"
+  crs: 7855
+  crs_source: 28355
+  bbox:
+    xmin: 147.343486
+    ymin: -35.129815
+    xmax: 147.387300
+    ymax: -35.087395
+  tile_index: 01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.shp
+  lidar_prefix: 01_WaggaWagga/02_MLSPointCloud/rev2/
