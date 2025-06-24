@@ -1,2 +1,4 @@
 # Model weights
 weights/best.pt filter=lfs diff=lfs merge=lfs -text
+data/*.gpkg filter=lfs diff=lfs merge=lfs -text
+*.gpkg filter=lfs diff=lfs merge=lfs -text

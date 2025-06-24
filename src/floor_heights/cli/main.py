@@ -329,6 +329,49 @@ def check_config(
         raise typer.Exit(1)
 
 
+@app.command("download-data", help="Download required AWS data files")
+def download_data(
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="Single region to download (default: all)",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be downloaded without actually downloading",
+    ),
+) -> None:
+    """Download required trajectory and tileset files from AWS S3.
+
+    This downloads essential files needed before running the pipeline:
+    - Trajectory files (FramePosOptimised CSV files)
+    - Tile index shapefiles (with .shp, .shx, .dbf, .prj, .cpg extensions)
+
+    Files are organized in the data/raw directory structure:
+    - data/raw/{region}/FramePosOptimised-{region}-rev2.csv
+    - data/raw/{region}/tileset/*.shp (and related files)
+
+    Examples:
+        # Download files for all regions
+        fh download-data
+
+        # Download files for a specific region
+        fh download-data -r wagga
+
+        # Preview what would be downloaded
+        fh download-data --dry-run
+    """
+    from floor_heights.utils.download_aws_data import download_aws_data
+
+    try:
+        download_aws_data(region=region, dry_run=dry_run)
+    except Exception as e:
+        console.print(f"[red]Download failed: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
 @app.command("info", help="Show pipeline configuration")
 def show_info() -> None:
     """Display current pipeline configuration."""
