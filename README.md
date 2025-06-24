@@ -117,9 +117,9 @@ fh check
 fh info
 
 # Database utilities
-fh db status
-fh db init
-fh db validate
+fh db pipeline    # Run full database processing pipeline
+fh db audit       # Audit database and generate documentation
+fh db info        # Show database information and statistics
 
 # YOLO model utilities
 fh yolo check
