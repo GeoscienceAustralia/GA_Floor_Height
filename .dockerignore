@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.conda/
+conda-meta/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Data files (can be large)
+data/
+output/
+outputs/
+weights/
+*.parquet
+*.csv
+*.tif
+*.tiff
+*.las
+*.laz
+*.zip
+*.tar
+*.gz
+
+# Logs
+*.log
+logs/
+
+# Secrets
+.env
+.secrets.baseline
+*.pem
+*.key
+
+# Documentation
+docs/
+*.md
+
+# Testing
+tests/
+pytest.ini
+.coverage*
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notebooks outputs
+notebooks/
+*.ipynb_checkpoints
+
+# Scratch and temp files
+scratch/
+tmp/
+temp/

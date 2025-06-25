@@ -38,7 +38,7 @@ from floor_heights.utils.fh_io import (
 from floor_heights.utils.point_cloud_processings import (
     calculate_gapfill_depth,
     compute_feature_properties,
-    estimate_FFH,
+    estimate_ffh,
     get_closest_ground_to_feature,
     select_best_feature,
 )
@@ -204,7 +204,7 @@ def _process_single_building(args_tuple) -> tuple[str, dict[str, Any] | None]:
             selected_features.loc[idx, "nearest_ground_elev"] = nearest_ground
 
         try:
-            ffh1, ffh2, ffh3 = estimate_FFH(
+            ffh1, ffh2, ffh3 = estimate_ffh(
                 selected_features, ground_elevation_gapfill=ground_elevation_dtm, min_ffh=MIN_FFH, max_ffh=MAX_FFH
             )
         except TypeError as e:

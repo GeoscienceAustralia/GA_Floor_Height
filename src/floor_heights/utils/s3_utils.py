@@ -8,7 +8,6 @@ from pathlib import Path
 
 from loguru import logger
 
-
 S3_BUCKET = "s3://frontiersi-p127-floor-height-woolpert/"
 
 
@@ -111,14 +110,12 @@ def download_region_data(region: str, data_root: Path) -> bool:
     region_dir = data_root / region
     success = True
 
-    
     for trajectory_file in region_files["trajectory"]:
         filename = Path(trajectory_file).name
         local_path = region_dir / filename
         if not download_file(trajectory_file, local_path):
             success = False
 
-    
     for tileset_file in region_files["tileset"]:
         filename = Path(tileset_file).name
         local_path = region_dir / "tileset" / filename

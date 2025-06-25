@@ -27,7 +27,7 @@ AWS_ACCESS_KEY_ID=your_access_key_id
 AWS_SECRET_ACCESS_KEY=your_secret_access_key
 AWS_DEFAULT_REGION=ap-southeast-2
 
-FH_OUTPUT_ROT=/path/to/output/directory
+FH_OUTPUT_ROOT=/path/to/output/directory
 
 # Optional: Local LiDAR data path (if not using S3)
 FH_LIDAR_DATA_ROOT=/path/to/local/lidar/data
@@ -132,9 +132,15 @@ fh check
 fh info
 
 # Database utilities
-fh db pipeline
-fh db audit
-fh db info
+fh db pipeline    # Run full database processing pipeline
+fh db audit       # Audit database and generate documentation
+fh db info        # Show database information and statistics
+
+# YOLO model utilities
+fh yolo export      # Export clips containing specific object classes
+fh yolo stats       # Show detection statistics by class
+fh yolo view        # View detection results in terminal
+fh yolo find-rare   # Find high-confidence examples of rare classes
 ```
 
 ## Regions
@@ -147,3 +153,19 @@ The pipeline supports three regions:
 ## Requirements
 -  appropriate credentials for AWS
 - ~4TB disk space for data and outputs
+
+## Docker
+
+Build and run the pipeline in Docker:
+
+```bash
+# Build the image
+docker compose build
+
+# Run interactively
+docker compose run --rm --entrypoint bash floor-heights
+conda activate floor-heights
+
+# Run specific pipeline stage
+docker compose run --rm floor-heights fh 1 --region wagga
+```
