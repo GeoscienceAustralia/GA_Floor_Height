@@ -363,7 +363,7 @@ def download_data(
         # Preview what would be downloaded
         fh download-data --dry-run
     """
-    from floor_heights.utils.download_aws_data import download_aws_data
+    from floor_heights.utils.s3_utils import download_aws_data
 
     try:
         download_aws_data(region=region, dry_run=dry_run)

@@ -488,3 +488,132 @@ def create_object_detection_visualization(
 
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return Image.fromarray(img_rgb)
+
+
+import os
+import subprocess
+import webbrowser
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+from loguru import logger
+
+
+class PotreeConverter:
+    """Handles conversion of LAS/LAZ files to Potree format."""
+
+    def __init__(self, potree_converter_path: str = "PotreeConverter"):
+        """
+        Initialize the Potree converter.
+
+        Args:
+            potree_converter_path: Path to PotreeConverter executable
+        """
+        self.converter_path = potree_converter_path
+
+    def convert(
+        self,
+        input_path: Path,
+        output_path: Path,
+        title: str | None = None,
+        spacing: float | None = None,
+        levels: int | None = None,
+    ) -> None:
+        """
+        Convert a LAS/LAZ file to Potree format.
+
+        Args:
+            input_path: Path to input LAS/LAZ file
+            output_path: Path to output directory
+            title: Title for the point cloud
+            spacing: Point spacing (auto-detected if None)
+            levels: Number of octree levels (auto if None)
+        """
+        if not input_path.exists():
+            raise FileNotFoundError(f"Input file not found: {input_path}")
+
+        cmd = [self.converter_path, str(input_path), "-o", str(output_path), "--generate-page", "index"]
+
+        if title:
+            cmd.extend(["--title", title])
+
+        if spacing is not None:
+            cmd.extend(["--spacing", str(spacing)])
+
+        if levels is not None:
+            cmd.extend(["--levels", str(levels)])
+
+        logger.info(f"Converting {input_path.name} to Potree format...")
+
+        env = os.environ.copy()
+        converter_dir = Path(self.converter_path).parent
+        if converter_dir.exists():
+            env["LD_LIBRARY_PATH"] = f"{converter_dir}:{env.get('LD_LIBRARY_PATH', '')}"
+
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Conversion failed: {result.stderr}\nStdout: {result.stdout}")
+
+        logger.success(f"Conversion complete: {output_path}")
+
+
+class PotreeViewer:
+    """Manages Potree visualization server and viewer."""
+
+    def __init__(self, port: int = 8080):
+        """
+        Initialize the viewer.
+
+        Args:
+            port: Port for the HTTP server
+        """
+        self.port = port
+        self.server = None
+
+    def serve_potree_directories(self, potree_dirs: list[Path], open_browser: bool = True) -> None:
+        """
+        Serve Potree directories individually.
+
+        Args:
+            potree_dirs: List of Potree output directories
+            open_browser: Whether to open browser automatically
+        """
+        if not potree_dirs:
+            logger.error("No Potree directories to serve")
+            return
+
+        root_dir = potree_dirs[0].parent
+
+        class Handler(SimpleHTTPRequestHandler):
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                super().__init__(*args, directory=str(root_dir), **kwargs)
+
+            def end_headers(self):
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                super().end_headers()
+
+        server_address = ("", self.port)
+        self.server = HTTPServer(server_address, Handler)
+
+        logger.info(f"\nAvailable point clouds ({len(potree_dirs)} total):")
+        for i, potree_dir in enumerate(potree_dirs):
+            relative_path = potree_dir.relative_to(root_dir)
+            url = f"http://localhost:{self.port}/{relative_path}/index.html"
+            logger.info(f"  [{i+1}] {potree_dir.name}: {url}")
+
+        if open_browser and potree_dirs:
+            first_path = potree_dirs[0].relative_to(root_dir)
+            url = f"http://localhost:{self.port}/{first_path}/index.html"
+            webbrowser.open(url)
+
+        logger.info(f"\nServing files from: {root_dir}")
+        logger.info("Open any of the URLs above to view individual point clouds")
+        logger.info("Press Ctrl+C to stop the server")
+
+        try:
+            self.server.serve_forever()
+        except KeyboardInterrupt:
+            logger.info("\nShutting down server...")
+            self.server.shutdown()
