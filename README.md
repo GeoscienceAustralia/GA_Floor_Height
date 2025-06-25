@@ -163,7 +163,8 @@ Build and run the pipeline in Docker:
 docker compose build
 
 # Run interactively
-docker compose run --rm floor-heights bash
+docker compose run --rm --entrypoint bash floor-heights
+conda activate floor-heights
 
 # Run specific pipeline stage
 docker compose run --rm floor-heights fh 1 --region wagga
