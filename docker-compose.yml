@@ -7,6 +7,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+      - ./weights:/app/weights
       - ./output:/app/output
       - ./.env:/app/.env:ro
       - ./pyproject.toml:/app/pyproject.toml:ro
