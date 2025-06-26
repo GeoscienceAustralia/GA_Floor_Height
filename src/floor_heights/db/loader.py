@@ -244,7 +244,7 @@ def convert_to_parquet() -> None:
 
     conn.raw_sql(f"""
         COPY (
-            SELECT
+            SELECT DISTINCT ON (building_id, gnaf_id)
                 ROW_NUMBER() OVER (ORDER BY building_id, gnaf_id) AS id,
                 building_id,
                 gnaf_id,
@@ -254,13 +254,11 @@ def convert_to_parquet() -> None:
                 land_use_zone,
                 geom
             FROM ST_Read('{buildings_path}')
-            WHERE dataset IS NULL OR dataset != 'FrontierSI Validation'
+            ORDER BY building_id, gnaf_id
         )
         TO '{processed}/buildings.parquet' (FORMAT 'PARQUET')
     """)
-    print(
-        "✓ Created minimal buildings.parquet with essential columns and deterministic IDs (excluding FrontierSI validation)"
-    )
+    print("✓ Created minimal buildings.parquet with essential columns and deterministic IDs")
 
     regions = {
         "wagga": {
