@@ -7,11 +7,11 @@ This pipeline combines computer vision and LiDAR analysis to automatically estim
 
 ### Key Features
 
-**Automated Building Detection** - YOLO-based object detection identifies key building features  
-**LiDAR Integration** - Precise height measurements from point cloud data  
-**Intelligent View Selection** - SigLIP scoring selects optimal viewpoints  
-**Quality Assurance** - Comprehensive validation and ground truth comparison  
-**Interactive Visualization** - 3D web viewer for exploring results  
+**Automated Building Detection** - YOLO-based object detection identifies key building features
+**LiDAR Integration** - Precise height measurements from point cloud data
+**Intelligent View Selection** - SigLIP scoring selects optimal viewpoints
+**Quality Assurance** - Comprehensive validation and ground truth comparison
+**Interactive Visualization** - 3D web viewer for exploring results
 
 ![Object Detection Results](docs/images/detection-screenshot.jpg)
 *Example of object detection results showing identified doors, windows, and building features*
@@ -199,7 +199,7 @@ The pipeline includes an interactive 3D web-based viewer for visualizing clipped
 ### Features
 - Interactive 3D visualization of clipped building point clouds
 - Browse processed clips by region with metadata
-- Measuring tools for validating First Floor Height (FFH) estimates  
+- Measuring tools for validating First Floor Height (FFH) estimates
 - Ground truth data creation and validation interface
 
 ### Running the Viewer

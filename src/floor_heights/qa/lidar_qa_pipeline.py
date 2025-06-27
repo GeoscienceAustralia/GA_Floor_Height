@@ -275,7 +275,7 @@ class LidarQAPipeline:
     def generate_summary_report(self, df: pd.DataFrame) -> dict[str, Any]:
         """Generate a summary report from the QA results."""
         summary = {
-            "total_tiles": int(len(df)),
+            "total_tiles": len(df),
             "tiles_needing_correction": int(df["needs_correction"].sum()),
             "average_density": float(df["density"].mean()),
             "quality_level_distribution": df["quality_level"].value_counts().to_dict(),
