@@ -1,5 +1,7 @@
 # Project specific directories to ignore
 docs/
+# Exception for docs/images directory (for README assets)
+!docs/images/
 inference_clean/
 scratch/
 output/

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floor Heights LiDAR Viewer</title>
+
+    <!-- React and ReactDOM from CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- deck.gl from CDN -->
+    <script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
+
+    <!-- Mapbox GL JS for base map -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #map-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .control-panel h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .control-group select,
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            margin-top: 5px;
+        }
+
+        .range-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .file-info p {
+            margin: 5px 0;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fee;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #fcc;
+            color: #c00;
+        }
+
+        .legend {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .stats {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { DeckGL, PointCloudLayer, OrbitView } = deck;
+
+        // LiDAR classification colors (ASPRS standard)
+        const CLASSIFICATION_COLORS = {
+            0: [128, 128, 128],    // Unclassified - gray
+            1: [128, 128, 128],    // Processed, but unclassified - gray
+            2: [139, 69, 19],      // Ground - brown
+            3: [34, 139, 34],      // Low Vegetation - light green
+            4: [0, 128, 0],        // Medium Vegetation - green
+            5: [0, 100, 0],        // High Vegetation - dark green
+            6: [255, 0, 0],        // Building - red
+            7: [255, 128, 0],      // Low Noise - orange
+            9: [0, 0, 255],        // Water - blue
+            10: [255, 255, 0],     // Rail - yellow
+            11: [64, 64, 64],      // Road Surface - dark gray
+            13: [128, 0, 128],     // Wire - purple
+            14: [255, 192, 203],   // Wire - pink
+            15: [160, 160, 160],   // Transmission Tower - light gray
+            17: [0, 255, 255],     // Bridge - cyan
+            18: [255, 0, 255]      // High Noise - magenta
+        };
+
+        const CLASSIFICATION_NAMES = {
+            0: 'Unclassified',
+            1: 'Unclassified',
+            2: 'Ground',
+            3: 'Low Vegetation',
+            4: 'Medium Vegetation',
+            5: 'High Vegetation',
+            6: 'Building',
+            7: 'Low Noise',
+            9: 'Water',
+            10: 'Rail',
+            11: 'Road Surface',
+            13: 'Wire - Guard',
+            14: 'Wire - Conductor',
+            15: 'Transmission Tower',
+            17: 'Bridge',
+            18: 'High Noise'
+        };
+
+        function App() {
+            const [files, setFiles] = useState([]);
+            const [selectedFile, setSelectedFile] = useState('');
+            const [pointData, setPointData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [pointSize, setPointSize] = useState(2);
+            const [colorMode, setColorMode] = useState('classification');
+            const [stats, setStats] = useState(null);
+            const [viewState, setViewState] = useState({
+                target: [0, 0, 0],
+                rotationX: 0,
+                rotationOrbit: 0,
+                zoom: 0
+            });
+
+            const deckRef = useRef(null);
+
+            // Fetch available files
+            useEffect(() => {
+                fetch('/api/files')
+                    .then(res => res.json())
+                    .then(data => {
+                        setFiles(data.files);
+                        if (data.files.length > 0 && !selectedFile) {
+                            setSelectedFile(data.files[0]);
+                        }
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        setError('Failed to load file list');
+                        setLoading(false);
+                    });
+            }, []);
+
+            // Load point cloud data
+            useEffect(() => {
+                if (!selectedFile) return;
+
+                setLoading(true);
+                setError(null);
+
+                fetch(`/api/pointcloud/${selectedFile}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        setPointData(data);
+                        setStats(data.stats);
+
+                        // Center view on point cloud
+                        if (data.bounds) {
+                            const center = [
+                                (data.bounds.minX + data.bounds.maxX) / 2,
+                                (data.bounds.minY + data.bounds.maxY) / 2,
+                                (data.bounds.minZ + data.bounds.maxZ) / 2
+                            ];
+
+                            setViewState({
+                                target: center,
+                                rotationX: -45,
+                                rotationOrbit: 0,
+                                zoom: Math.log2(100 / Math.max(
+                                    data.bounds.maxX - data.bounds.minX,
+                                    data.bounds.maxY - data.bounds.minY
+                                ))
+                            });
+                        }
+
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        setError(`Failed to load point cloud: ${err.message}`);
+                        setLoading(false);
+                    });
+            }, [selectedFile]);
+
+            const getPointColor = (point) => {
+                if (colorMode === 'classification') {
+                    const cls = point.classification || 0;
+                    return CLASSIFICATION_COLORS[cls] || [128, 128, 128];
+                } else if (colorMode === 'intensity') {
+                    const intensity = point.intensity || 0;
+                    const normalized = intensity / 255;
+                    return [normalized * 255, normalized * 255, normalized * 255];
+                } else if (colorMode === 'elevation') {
+                    if (!stats) return [128, 128, 128];
+                    const normalized = (point.position[2] - stats.minZ) / (stats.maxZ - stats.minZ);
+                    // Color ramp from blue (low) to red (high)
+                    return [
+                        normalized * 255,
+                        (1 - Math.abs(normalized - 0.5) * 2) * 255,
+                        (1 - normalized) * 255
+                    ];
+                } else if (colorMode === 'rgb' && point.color) {
+                    return point.color;
+                }
+                return [200, 200, 200];
+            };
+
+            const layers = pointData ? [
+                new PointCloudLayer({
+                    id: 'point-cloud',
+                    data: pointData.points,
+                    getPosition: d => d.position,
+                    getColor: d => getPointColor(d),
+                    pointSize: pointSize,
+                    coordinateSystem: COORDINATE_SYSTEM.CARTESIAN,
+                    pickable: true
+                })
+            ] : [];
+
+            const resetView = () => {
+                if (pointData && pointData.bounds) {
+                    const center = [
+                        (pointData.bounds.minX + pointData.bounds.maxX) / 2,
+                        (pointData.bounds.minY + pointData.bounds.maxY) / 2,
+                        (pointData.bounds.minZ + pointData.bounds.maxZ) / 2
+                    ];
+
+                    setViewState({
+                        target: center,
+                        rotationX: -45,
+                        rotationOrbit: 0,
+                        zoom: Math.log2(100 / Math.max(
+                            pointData.bounds.maxX - pointData.bounds.minX,
+                            pointData.bounds.maxY - pointData.bounds.minY
+                        ))
+                    });
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div className="loading">
+                        <div className="loading-spinner"></div>
+                        <p>Loading point cloud data...</p>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="error">
+                        <h3>Error</h3>
+                        <p>{error}</p>
+                    </div>
+                );
+            }
+
+            return (
+                <>
+                    <DeckGL
+                        ref={deckRef}
+                        views={new OrbitView({ orbitAxis: 'Z' })}
+                        viewState={viewState}
+                        onViewStateChange={({viewState}) => setViewState(viewState)}
+                        controller={true}
+                        layers={layers}
+                        parameters={{
+                            clearColor: [0.93, 0.93, 0.93, 1]
+                        }}
+                    />
+
+                    <div className="control-panel">
+                        <h2>Floor Heights LiDAR Viewer</h2>
+
+                        <div className="control-group">
+                            <label>Select LAS File:</label>
+                            <select
+                                value={selectedFile}
+                                onChange={(e) => setSelectedFile(e.target.value)}
+                            >
+                                {files.map(file => (
+                                    <option key={file} value={file}>{file}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="control-group">
+                            <label>Color Mode:</label>
+                            <select
+                                value={colorMode}
+                                onChange={(e) => setColorMode(e.target.value)}
+                            >
+                                <option value="classification">Classification</option>
+                                <option value="elevation">Elevation</option>
+                                <option value="intensity">Intensity</option>
+                                {pointData && pointData.hasColor && (
+                                    <option value="rgb">RGB Color</option>
+                                )}
+                            </select>
+                        </div>
+
+                        <div className="control-group">
+                            <label>
+                                Point Size:
+                                <span className="range-value">{pointSize}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={pointSize}
+                                onChange={(e) => setPointSize(Number(e.target.value))}
+                            />
+                        </div>
+
+                        <button onClick={resetView}>Reset View</button>
+
+                        {stats && (
+                            <div className="file-info">
+                                <p><strong>File Info:</strong></p>
+                                <div className="stats">
+                                    <div className="stats-item">
+                                        <span>Points:</span>
+                                        <span>{stats.pointCount.toLocaleString()}</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span>Min Elevation:</span>
+                                        <span>{stats.minZ.toFixed(2)}m</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span>Max Elevation:</span>
+                                        <span>{stats.maxZ.toFixed(2)}m</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span>Width:</span>
+                                        <span>{(stats.maxX - stats.minX).toFixed(2)}m</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span>Height:</span>
+                                        <span>{(stats.maxY - stats.minY).toFixed(2)}m</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {colorMode === 'classification' && (
+                            <div className="legend">
+                                <p><strong>Classification Legend:</strong></p>
+                                {stats && stats.classifications &&
+                                    Object.entries(stats.classifications)
+                                        .sort(([a], [b]) => Number(a) - Number(b))
+                                        .map(([cls, count]) => (
+                                            <div key={cls} className="legend-item">
+                                                <div
+                                                    className="legend-color"
+                                                    style={{
+                                                        backgroundColor: `rgb(${CLASSIFICATION_COLORS[cls] || [128, 128, 128]})`
+                                                    }}
+                                                />
+                                                <span>
+                                                    {CLASSIFICATION_NAMES[cls] || `Class ${cls}`}
+                                                    ({count.toLocaleString()})
+                                                </span>
+                                            </div>
+                                        ))
+                                }
+                            </div>
+                        )}
+                    </div>
+                </>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('app'));
+    </script>
+
+    <!-- Enable JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 """Database management commands for the Floor Heights CLI."""
 
+import contextlib
 import time
 from pathlib import Path
 
@@ -140,7 +141,7 @@ def create_db_app() -> typer.Typer:
                     console.print(f"  • {table_name}: [yellow]Error reading[/yellow]")
 
             if "buildings" in tables:
-                try:
+                with contextlib.suppress(Exception):
                     buildings = conn.table("buildings")
                     regions_data = (
                         buildings.group_by("region_name").agg(count=buildings.count()).order_by("region_name").execute()
@@ -153,8 +154,6 @@ def create_db_app() -> typer.Typer:
                             console.print(f"  • {row.region_name}: {row.count:,} buildings")
                             total += row.count
                         console.print(f"  [dim]Total: {total:,} buildings[/dim]")
-                except Exception:
-                    pass
 
             console.print()
 
@@ -285,6 +284,93 @@ def create_db_app() -> typer.Typer:
 
         except Exception as e:
             console.print(f"[red]Query error: {e}[/red]")
+            raise typer.Exit(1) from e
+
+    @app.command("export", help="Export tables to Parquet/GeoParquet format")
+    def export(
+        table: str | None = typer.Argument(None, help="Table name to export (or 'all' for all tables)"),
+        output_dir: Path | None = typer.Option(
+            None,
+            "--output-dir",
+            "-o",
+            help="Directory to save Parquet files",
+        ),
+    ) -> None:
+        """Export database tables to Parquet/GeoParquet format.
+
+        This command exports tables from DuckDB to Parquet files. Tables with
+        geometry columns will automatically be exported as GeoParquet.
+
+        Examples:
+            # Export a specific table
+            fh db export buildings
+
+            # Export all tables
+            fh db export all
+
+            # Export to a specific directory
+            fh db export buildings --output-dir /path/to/exports
+
+            # Export all tables (also saves to exports folder)
+            fh db export all
+        """
+        try:
+            if not CONFIG.db_path.exists():
+                console.print(f"[red]Database not found at: {CONFIG.db_path}[/red]")
+                console.print("Run 'fh db pipeline' to create the database first")
+                raise typer.Exit(1)
+
+            if output_dir is None:
+                output_dir = CONFIG.db_path.parent / "exports"
+
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            conn = ibis_connect(CONFIG.db_path, read_only=True)
+
+            if table is None:
+                console.print("\n[bold]Available tables:[/bold]")
+                tables = conn.list_tables()
+                for t in sorted(tables):
+                    console.print(f"  • {t}")
+                console.print("\n[yellow]Specify a table name or 'all' to export[/yellow]")
+                raise typer.Exit(0)
+
+            tables_to_export = []
+            if table.lower() == "all":
+                tables_to_export = conn.list_tables()
+            else:
+                if table not in conn.list_tables():
+                    console.print(f"[red]Table '{table}' not found[/red]")
+                    raise typer.Exit(1)
+
+                tables_to_export = [table]
+
+            console.print(f"\n[cyan]Exporting {len(tables_to_export)} table(s) to {output_dir}...[/cyan]")
+
+            con = conn.con
+
+            with contextlib.suppress(Exception):
+                con.execute("LOAD spatial")
+
+            for table_name in tables_to_export:
+                try:
+                    console.print(f"\nExporting {table_name}...")
+
+                    row_count = conn.table(table_name).count().execute()
+
+                    output_path = output_dir / f"{table_name}.parquet"
+                    con.execute(f"COPY {table_name} TO '{output_path}' (FORMAT parquet)")
+
+                    file_size = output_path.stat().st_size / (1024 * 1024)
+                    console.print(f"  [green]✓ Exported {row_count:,} rows ({file_size:.1f} MB)[/green]")
+
+                except Exception as e:
+                    console.print(f"  [red]✗ Error exporting {table_name}: {e}[/red]")
+                    continue
+            console.print(f"\n[green]✓ Export complete! Files saved to: {output_dir}[/green]")
+
+        except Exception as e:
+            console.print(f"[red]Export error: {e}[/red]")
             raise typer.Exit(1) from e
 
     return app

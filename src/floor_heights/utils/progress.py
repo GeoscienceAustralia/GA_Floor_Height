@@ -100,6 +100,9 @@ class PipelineProgress:
                 elif field == "missing":
                     columns.append(TextColumn(" • [yellow]⊘{task.fields[missing]}"))
                     continue
+                elif field == "empty":
+                    columns.append(TextColumn(" • [dim]∅{task.fields[empty]}"))
+                    continue
                 else:
                     label = field.upper()
                 columns.append(TextColumn(" • [blue]" + label + ":{task.fields[" + field + "]}"))
@@ -264,5 +267,17 @@ def projection_progress(description: str, total: int) -> PipelineProgress:
         show_elapsed=True,
         custom_fields={
             "missing": 0,
+        },
+    )
+
+
+def lidar_stats_progress(description: str, total: int) -> PipelineProgress:
+    """Create progress bar for LiDAR statistics computation."""
+    return PipelineProgress(
+        description,
+        total,
+        show_elapsed=True,
+        custom_fields={
+            "empty": 0,
         },
     )

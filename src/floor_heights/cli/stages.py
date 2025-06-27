@@ -252,9 +252,7 @@ To estimate First Floor Heights (FFH) using multiple methods:
         module_path="stage07_estimate_floor_height",
         parameters=[
             REGION_PARAM,
-            StageParameter(
-                name="workers", type=int, default=1, help="Number of workers (limited by rasterio)", short="-w"
-            ),
+            WORKERS_PARAM,
             StageParameter(
                 name="projection_mode", type=str, default="normal", help="Point cloud projection mode from stage05"
             ),
@@ -281,6 +279,30 @@ The validation:
         module_path="stage08_validate_results",
         parameters=[
             StageParameter(name="skip_existing", type=bool, default=False, help="Skip if validation already exists"),
+        ],
+    ),
+    StageDefinition(
+        number="9a",
+        name="stage09a",
+        aliases=["lidar-stats"],
+        help="Extract LiDAR statistics from clipped point clouds",
+        description="""Stage 09a: Extract statistics from clipped LiDAR files.
+
+Reads LAS files from stage01 and computes metrics for analysis:
+- Point density and coverage
+- Height distribution and percentiles
+- Classification features (ground, building, vegetation)
+- Building structure indicators
+- Return pattern analysis
+- Features for FFH prediction
+
+Statistics are stored in the database for analysis, ML models,
+and quality assessment.""",
+        module_path="stage09a_compute_lidar_stats",
+        parameters=[
+            REGION_PARAM,
+            WORKERS_PARAM,
+            SAMPLE_PARAM,
         ],
     ),
 ]

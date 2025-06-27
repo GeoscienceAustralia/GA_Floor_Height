@@ -69,7 +69,10 @@ def calculate_width_difference(left_pixel, right_pixel, depth_map, width_pano=11
 
     w_img = depth_map.shape[1]
     angle_extend = w_img * 180.0 / width_pano
-    phi = lambda x: np.radians((2 * x / w_img - 1) * (angle_extend / 2))  # noqa: E731
+
+    def phi(x):
+        return np.radians((2 * x / w_img - 1) * (angle_extend / 2))
+
     x1, z1 = depth_l * np.sin(phi(xl)), depth_l * np.cos(phi(xl))
     x2, z2 = depth_r * np.sin(phi(xr)), depth_r * np.cos(phi(xr))
 
@@ -543,7 +546,7 @@ def fill_small_nans(arr, max_hole_size=10, nodata_value=9999):
 
     labeled, num_features = ndimage.label(nodata_mask)
 
-    sizes = ndimage.sum(nodata_mask, labeled, range(num_features + 1))  # noqa: F841
+    # sizes = ndimage.sum(nodata_mask, labeled, range(num_features + 1))
 
     filled = arr.copy()
 
@@ -622,7 +625,7 @@ def process_extract_ground_elevations(las_file_path, resolution, crs, output_tif
         {"type": "filters.outlier"},
         {
             "type": "filters.csf",
-            "ignore": "Classification[7:7]",  # Ignore noise class if present
+            "ignore": "Classification[7:7]",
             "resolution": 1,
             "hdiff": 0.5,
             "smooth": False,

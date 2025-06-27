@@ -161,6 +161,71 @@ class Stage08ValidationRecord(StageRecordBase):
     squared_error: float
 
 
+class Stage09aLidarStatsRecord(StageRecordBase):
+    las_path: str
+    point_count: int
+    footprint_area: float
+    point_density: float
+    building_height: float
+    convex_hull_area: float
+    coverage_ratio: float
+    spatial_coverage: float
+    z_min: float
+    z_max: float
+    z_range: float
+    z_mean: float
+    z_std: float
+    z_p10: float
+    z_p25: float
+    z_p50: float
+    z_p75: float
+    z_p90: float
+    pts_0_3m: int
+    pts_3_6m: int
+    pts_6_9m: int
+    pts_9_12m: int
+    pts_above_12m: int
+    returns_single: int
+    returns_multiple: int
+    intensity_mean: float
+    intensity_std: float
+    ground_point_count: int
+    ground_z_mean: float
+    ground_z_std: float
+    noise_point_count: int
+    roof_z_variance: float
+    vegetation_proximity_count: int
+    verticality_score: float
+    planarity_score: float
+    building_height_peaks: int
+    building_height_regularity: float
+    facade_alignment_score: float
+    building_density_0_3m: float
+    building_density_3_6m: float
+    building_density_6_9m: float
+    building_density_9_12m: float
+    building_density_12_15m: float
+    building_density_15_20m: float
+    building_density_20_30m: float
+    building_density_30_50m: float
+    multi_return_ratio_0_10m: float
+    multi_return_ratio_10_20m: float
+    multi_return_ratio_20_30m: float
+    multi_return_ratio_30_50m: float
+    ground_height_variance: float
+    ground_height_iqr: float
+    building_height_variance: float
+    building_height_iqr: float
+    class_0_never: int
+    class_1_unassigned: int
+    class_2_ground: int
+    class_3_low_veg: int
+    class_4_med_veg: int
+    class_5_high_veg: int
+    class_6_building: int
+    class_7_noise: int
+
+
 STAGE_SCHEMAS = {
     "stage01_clips": {
         "model": Stage01ClipRecord,
@@ -413,6 +478,78 @@ STAGE_SCHEMAS = {
             "error": "float32",
             "absolute_error": "float32",
             "squared_error": "float32",
+            "processed_at": "datetime64[ns]",
+        },
+    },
+    "stage09a_lidar_stats": {
+        "model": Stage09aLidarStatsRecord,
+        "columns": {
+            "id": "int64",
+            "building_id": "str",
+            "region_name": "str",
+            "gnaf_id": "str",
+            "las_path": "str",
+            "point_count": "int32",
+            "footprint_area": "float32",
+            "point_density": "float32",
+            "building_height": "float32",
+            "convex_hull_area": "float32",
+            "coverage_ratio": "float32",
+            "spatial_coverage": "float32",
+            "z_min": "float32",
+            "z_max": "float32",
+            "z_range": "float32",
+            "z_mean": "float32",
+            "z_std": "float32",
+            "z_p10": "float32",
+            "z_p25": "float32",
+            "z_p50": "float32",
+            "z_p75": "float32",
+            "z_p90": "float32",
+            "pts_0_3m": "int32",
+            "pts_3_6m": "int32",
+            "pts_6_9m": "int32",
+            "pts_9_12m": "int32",
+            "pts_above_12m": "int32",
+            "returns_single": "int32",
+            "returns_multiple": "int32",
+            "intensity_mean": "float32",
+            "intensity_std": "float32",
+            "ground_point_count": "int32",
+            "ground_z_mean": "float32",
+            "ground_z_std": "float32",
+            "noise_point_count": "int32",
+            "roof_z_variance": "float32",
+            "vegetation_proximity_count": "int32",
+            "verticality_score": "float32",
+            "planarity_score": "float32",
+            "building_height_peaks": "int32",
+            "building_height_regularity": "float32",
+            "facade_alignment_score": "float32",
+            "building_density_0_3m": "float32",
+            "building_density_3_6m": "float32",
+            "building_density_6_9m": "float32",
+            "building_density_9_12m": "float32",
+            "building_density_12_15m": "float32",
+            "building_density_15_20m": "float32",
+            "building_density_20_30m": "float32",
+            "building_density_30_50m": "float32",
+            "multi_return_ratio_0_10m": "float32",
+            "multi_return_ratio_10_20m": "float32",
+            "multi_return_ratio_20_30m": "float32",
+            "multi_return_ratio_30_50m": "float32",
+            "ground_height_variance": "float32",
+            "ground_height_iqr": "float32",
+            "building_height_variance": "float32",
+            "building_height_iqr": "float32",
+            "class_0_never": "int32",
+            "class_1_unassigned": "int32",
+            "class_2_ground": "int32",
+            "class_3_low_veg": "int32",
+            "class_4_med_veg": "int32",
+            "class_5_high_veg": "int32",
+            "class_6_building": "int32",
+            "class_7_noise": "int32",
             "processed_at": "datetime64[ns]",
         },
     },
