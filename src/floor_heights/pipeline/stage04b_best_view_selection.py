@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Stage-04b: Best view selection from object detections with SigLIP occlusion scoring.
 
 Selects the best panorama view for each building based on:
@@ -592,6 +591,7 @@ def process_building_views(
     clips_df: pd.DataFrame,
     distance_lookup: dict[tuple[int, str, int, str], float],
     data_dir: Path,
+    include_closest_direct: bool = False,
 ) -> tuple[list[dict[str, Any]], int]:
     """Process views for a single building and return best view results."""
     results = []
@@ -725,40 +725,41 @@ def process_building_views(
         }
     )
 
-    direct_views = [r for r in view_results if r["view_type"] == "direct"]
-    if direct_views:
-        closest_direct = min(direct_views, key=lambda x: x["distance"])
-        results.append(
-            {
-                "id": row_id,
-                "building_id": building_id,
-                "region_name": region,
-                "gnaf_id": gnaf_id,
-                "pano_id": closest_direct["pano_id"],
-                "edge_idx": closest_direct["edge_idx"],
-                "view_type": closest_direct["view_type"],
-                "detection_score": float(closest_direct["detection_scores"]["total_score"]),
-                "siglip_score": float(closest_direct["siglip_score"]),
-                "combined_score": float(closest_direct["combined_score"]),
-                "distance": float(closest_direct["distance"]),
-                "siglip_weight": float(siglip_weight),
-                "has_door_override": bool(closest_direct["score_info"]["has_door_override"]),
-                "diversity_bonus": float(closest_direct["score_info"]["diversity_bonus"]),
-                "view_angle_bonus": float(closest_direct["score_info"]["view_angle_bonus"]),
-                "has_ground_feature": bool(closest_direct["score_info"]["has_ground_feature"]),
-                "has_entrance_feature": bool(closest_direct["score_info"]["has_entrance_feature"]),
-                "selection_type": "closest_direct",
-                "status": "success",
-                "error_message": None,
-                "clip_image_path": closest_direct["clip_path"],
-                "ground_visibility_score": float(closest_direct["score_info"].get("ground_visibility_score", 0)),
-            }
-        )
+    if include_closest_direct:
+        direct_views = [r for r in view_results if r["view_type"] == "direct"]
+        if direct_views:
+            closest_direct = min(direct_views, key=lambda x: x["distance"])
+            results.append(
+                {
+                    "id": row_id,
+                    "building_id": building_id,
+                    "region_name": region,
+                    "gnaf_id": gnaf_id,
+                    "pano_id": closest_direct["pano_id"],
+                    "edge_idx": closest_direct["edge_idx"],
+                    "view_type": closest_direct["view_type"],
+                    "detection_score": float(closest_direct["detection_scores"]["total_score"]),
+                    "siglip_score": float(closest_direct["siglip_score"]),
+                    "combined_score": float(closest_direct["combined_score"]),
+                    "distance": float(closest_direct["distance"]),
+                    "siglip_weight": float(siglip_weight),
+                    "has_door_override": bool(closest_direct["score_info"]["has_door_override"]),
+                    "diversity_bonus": float(closest_direct["score_info"]["diversity_bonus"]),
+                    "view_angle_bonus": float(closest_direct["score_info"]["view_angle_bonus"]),
+                    "has_ground_feature": bool(closest_direct["score_info"]["has_ground_feature"]),
+                    "has_entrance_feature": bool(closest_direct["score_info"]["has_entrance_feature"]),
+                    "selection_type": "closest_direct",
+                    "status": "success",
+                    "error_message": None,
+                    "clip_image_path": closest_direct["clip_path"],
+                    "ground_visibility_score": float(closest_direct["score_info"].get("ground_visibility_score", 0)),
+                }
+            )
 
     return results, len(view_results)
 
 
-def process_region(region: str, workers: int = -1, batch_size: int = 100) -> None:
+def process_region(region: str, workers: int = -1, batch_size: int = 100, include_closest_direct: bool = False) -> None:
     """Process best view selection for a region."""
     logger.info(f"Processing best view selection for region: {region}")
 
@@ -835,6 +836,7 @@ def process_region(region: str, workers: int = -1, batch_size: int = 100) -> Non
                     clips_df=clips_df,
                     distance_lookup=distance_lookup,
                     data_dir=data_dir,
+                    include_closest_direct=include_closest_direct,
                 )
 
                 if building_results:
@@ -917,6 +919,7 @@ def run_stage(
     region: str | None = None,
     workers: int = -1,
     batch_size: int = 100,
+    include_closest_direct: bool = False,
 ) -> None:
     """Run stage 04b: best view selection with SigLIP scoring.
 
@@ -924,6 +927,7 @@ def run_stage(
         region: Specific region to process, or None for all regions
         workers: Number of workers (not used in this stage)
         batch_size: Batch size for database operations
+        include_closest_direct: Whether to also save the closest direct view
     """
 
     initialize_all_stage_tables()
@@ -932,7 +936,9 @@ def run_stage(
 
     for region_name in regions:
         try:
-            process_region(region_name, workers=workers, batch_size=batch_size)
+            process_region(
+                region_name, workers=workers, batch_size=batch_size, include_closest_direct=include_closest_direct
+            )
             logger.success(f"Completed stage 04b for {region_name}")
         except Exception as e:
             logger.error(f"Failed stage 04b for {region_name}: {e}")
@@ -955,6 +961,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--no-siglip", action="store_true", help="Disable SigLIP occlusion scoring (use detection scores only)"
     )
+    parser.add_argument(
+        "--include-closest-direct", action="store_true", help="Also save the closest direct view for each building"
+    )
     args = parser.parse_args()
 
     if args.no_siglip:
@@ -969,4 +978,5 @@ if __name__ == "__main__":
         region=args.region,
         workers=args.workers,
         batch_size=args.batch_size,
+        include_closest_direct=args.include_closest_direct,
     )
