@@ -5,18 +5,18 @@ import { OrbitView } from '@deck.gl/core'
 
 
 const CLASSIFICATION_COLORS = {
-  0: [128, 128, 128],  
-  1: [128, 128, 128],  
-  2: [139, 69, 19],    
-  3: [34, 139, 34],    
-  4: [0, 255, 0],      
-  5: [0, 100, 0],      
-  6: [255, 165, 0],    
-  7: [255, 0, 0],      
-  9: [0, 191, 255],    
-  10: [128, 0, 128],   
-  11: [64, 64, 64],    
-  12: [255, 255, 0],   
+  0: [128, 128, 128],
+  1: [128, 128, 128],
+  2: [139, 69, 19],
+  3: [34, 139, 34],
+  4: [0, 255, 0],
+  5: [0, 100, 0],
+  6: [255, 165, 0],
+  7: [255, 0, 0],
+  9: [0, 191, 255],
+  10: [128, 0, 128],
+  11: [64, 64, 64],
+  12: [255, 255, 0],
 }
 
 const CLASSIFICATION_NAMES = {
@@ -47,13 +47,13 @@ function App() {
   })
   const [pointSize, setPointSize] = useState(1)
   const [selectedRegion, setSelectedRegion] = useState('wagga')
-  const [selectedFile, setSelectedFile] = useState(null)  
+  const [selectedFile, setSelectedFile] = useState(null)
   const [measurementMode, setMeasurementMode] = useState(false)
   const [measurementPoints, setMeasurementPoints] = useState([])
   const [stats, setStats] = useState(null)
   const [hoveredPoint, setHoveredPoint] = useState(null)
 
-  
+
   const [initialClipId, setInitialClipId] = useState(null)
   const [initialStateLoaded, setInitialStateLoaded] = useState(false)
   const initializedRef = useRef(false)
@@ -61,10 +61,10 @@ function App() {
   const [filesList, setFilesList] = useState([])
   const [currentFileIndex, setCurrentFileIndex] = useState(0)
 
-  
+
   useEffect(() => {
     console.log('App mounted, fetching initial state...')
-    
+
     const timer = setTimeout(() => {
       fetch('/api/initial-state')
         .then(res => {
@@ -81,7 +81,7 @@ function App() {
             console.log('Setting initial clip ID to:', data.clip_id)
             setInitialClipId(data.clip_id)
             setBrowsingMode(false)
-            
+
             setSelectedFile(null)
             setPointData([])
           } else {
@@ -96,11 +96,11 @@ function App() {
           setInitialStateLoaded(true)
         })
     }, 1000)
-    
+
     return () => clearTimeout(timer)
   }, [])
 
-  
+
   useEffect(() => {
     console.log('File fetch effect - initialStateLoaded:', initialStateLoaded, 'region:', selectedRegion, 'clipId:', initialClipId, 'browsingMode:', browsingMode)
     if (initialStateLoaded) {
@@ -124,21 +124,21 @@ function App() {
   }, [browsingMode, filesList, currentFileIndex])
 
   const fetchAvailableFiles = async (region) => {
-    
+
     if (!initialClipId && !browsingMode) {
       console.log('No clip ID provided and not in browsing mode')
       setLoading(false)
       return
     }
-    
+
     try {
       if (browsingMode) {
         console.log(`Browsing mode: fetching all files for region: ${region}`)
         setLoading(true)
-        
+
         const response = await fetch(`/api/lidar/files/${region}`)
         const data = await response.json()
-        
+
         if (data.files && data.files.length > 0) {
           console.log(`Found ${data.files.length} files in region`)
           setFilesList(data.files)
@@ -151,10 +151,10 @@ function App() {
       } else {
         console.log(`Looking for clip ID: ${initialClipId} in region: ${region}`)
         setLoading(true)
-        
+
         const response = await fetch(`/api/lidar/file-exists/${region}/${initialClipId}`)
         const data = await response.json()
-        
+
         if (data.exists && data.filename) {
           console.log(`Found file: ${data.filename}`)
           setSelectedFile(data.filename)
@@ -170,7 +170,7 @@ function App() {
     }
   }
 
-  
+
   useEffect(() => {
     console.log(`Load effect triggered - selectedFile: ${selectedFile}, selectedRegion: ${selectedRegion}`)
     if (selectedFile) {
@@ -191,20 +191,20 @@ function App() {
       }
       const data = await response.json()
       console.log(`Received data with ${data.points?.length || 0} points`)
-      
-      
+
+
       const processedData = data.points.map(point => {
-        
+
         const baseColor = CLASSIFICATION_COLORS[point.classification] || [128, 128, 128]
-        
-        
-        
-        
+
+
+
+
         const intensityFactor = 0.7 + (point.intensity * 0.6)
-        
-        
+
+
         const color = baseColor.map(c => Math.min(255, Math.round(c * intensityFactor)))
-        
+
         return {
           position: [point.x, point.y, point.z],
           color: color,
@@ -213,10 +213,10 @@ function App() {
           ...point
         }
       })
-      
+
       setPointData(processedData)
-      
-      
+
+
       const bounds = {
         minX: Math.min(...data.points.map(p => p.x)),
         maxX: Math.max(...data.points.map(p => p.x)),
@@ -225,20 +225,20 @@ function App() {
         minZ: Math.min(...data.points.map(p => p.z)),
         maxZ: Math.max(...data.points.map(p => p.z))
       }
-      
+
       const center = [
         (bounds.minX + bounds.maxX) / 2,
         (bounds.minY + bounds.maxY) / 2,
         (bounds.minZ + bounds.maxZ) / 2
       ]
-      
+
       setViewState(prev => ({ ...prev, target: center }))
       setStats({
         pointCount: data.points.length,
         bounds,
         classifications: data.classifications
       })
-      
+
     } catch (error) {
       console.error('Error loading point cloud:', error)
     } finally {
@@ -248,14 +248,14 @@ function App() {
 
   const handleClick = useCallback((info) => {
     if (!measurementMode || !info.object) return
-    
+
     const point = info.object
     const newPoints = [...measurementPoints, point]
-    
+
     if (newPoints.length > 2) {
-      newPoints.shift() 
+      newPoints.shift()
     }
-    
+
     setMeasurementPoints(newPoints)
   }, [measurementMode, measurementPoints])
 
@@ -269,14 +269,14 @@ function App() {
 
   const navigateToFile = (direction) => {
     if (!browsingMode || filesList.length === 0) return
-    
+
     let newIndex = currentFileIndex
     if (direction === 'next') {
       newIndex = (currentFileIndex + 1) % filesList.length
     } else {
       newIndex = currentFileIndex === 0 ? filesList.length - 1 : currentFileIndex - 1
     }
-    
+
     setCurrentFileIndex(newIndex)
     setSelectedFile(filesList[newIndex])
     setMeasurementPoints([])
@@ -289,15 +289,15 @@ function App() {
         data: pointData,
         getPosition: d => d.position,
         getColor: d => {
-          
-          if (measurementMode && hoveredPoint && 
+
+          if (measurementMode && hoveredPoint &&
               d.x === hoveredPoint.x && d.y === hoveredPoint.y && d.z === hoveredPoint.z) {
-            return [255, 255, 0] 
+            return [255, 255, 0]
           }
           return d.color
         },
         getNormal: [0, 0, 15],
-        pointSize: measurementMode ? pointSize * 1.5 : pointSize, 
+        pointSize: measurementMode ? pointSize * 1.5 : pointSize,
         pickable: true,
         updateTriggers: {
           getColor: [hoveredPoint, measurementMode],
@@ -306,7 +306,7 @@ function App() {
       })
     ]
 
-    
+
     if (measurementPoints.length > 0) {
       layers.push(
         new ScatterplotLayer({
@@ -335,7 +335,7 @@ function App() {
           })
         )
       } else if (measurementPoints.length === 1 && hoveredPoint) {
-        
+
         layers.push(
           new LineLayer({
             id: 'measurement-preview',
@@ -345,9 +345,9 @@ function App() {
             }],
             getSourcePosition: d => d.sourcePosition,
             getTargetPosition: d => d.targetPosition,
-            getColor: [255, 255, 0, 128], 
+            getColor: [255, 255, 0, 128],
             getWidth: 2,
-            getDashArray: [4, 4] 
+            getDashArray: [4, 4]
           })
         )
       }
@@ -358,19 +358,19 @@ function App() {
 
   const getMeasurementResults = () => {
     if (measurementPoints.length !== 2) return null
-    
+
     const p1 = measurementPoints[0]
     const p2 = measurementPoints[1]
-    
+
     const dx = p2.x - p1.x
     const dy = p2.y - p1.y
     const dz = p2.z - p1.z
-    
+
     const horizontalDist = Math.sqrt(dx * dx + dy * dy)
     const slopeDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
     const heightDiff = Math.abs(dz)
     const angle = Math.atan2(Math.abs(dz), horizontalDist) * 180 / Math.PI
-    
+
     return {
       heightDiff: heightDiff.toFixed(3),
       horizontalDist: horizontalDist.toFixed(3),
@@ -382,9 +382,9 @@ function App() {
   }
 
   return (
-    <div style={{ 
-      position: 'relative', 
-      width: '100vw', 
+    <div style={{
+      position: 'relative',
+      width: '100vw',
       height: '100vh',
       cursor: measurementMode ? 'crosshair' : 'grab'
     }}>
@@ -418,7 +418,7 @@ function App() {
 
       <div className="control-panel">
         <h2>LiDAR Point Cloud Viewer</h2>
-        
+
         <div className="control-group">
           <label>Viewing Clip</label>
           <div style={{padding: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '14px', fontFamily: 'monospace'}}>
@@ -430,15 +430,15 @@ function App() {
           <div className="control-group">
             <label>Browse Files ({currentFileIndex + 1} of {filesList.length})</label>
             <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-              <button 
-                onClick={() => navigateToFile('prev')} 
+              <button
+                onClick={() => navigateToFile('prev')}
                 style={{flex: 1}}
                 title="Previous file (←)"
               >
                 ← Previous
               </button>
-              <button 
-                onClick={() => navigateToFile('next')} 
+              <button
+                onClick={() => navigateToFile('next')}
                 style={{flex: 1}}
                 title="Next file (→)"
               >
