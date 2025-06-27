@@ -1,6 +1,34 @@
 # GA Floor Height Pipeline
 
-A pipeline for extracting building floor heights from LiDAR and street-view imagery data.
+
+## Overview
+
+This pipeline combines computer vision and LiDAR analysis to automatically estimate building first floor heights. The system processes street-view imagery to detect building features, then correlates this with LiDAR point cloud data to calculate accurate first floor height measurements.
+
+### Key Features
+
+**Automated Building Detection** - YOLO-based object detection identifies key building features  
+**LiDAR Integration** - Precise height measurements from point cloud data  
+**Intelligent View Selection** - SigLIP scoring selects optimal viewpoints  
+**Quality Assurance** - Comprehensive validation and ground truth comparison  
+**Interactive Visualization** - 3D web viewer for exploring results  
+
+![Object Detection Results](docs/images/detection-screenshot.jpg)
+*Example of object detection results showing identified doors, windows, and building features*
+
+## Pipeline Workflow
+
+The pipeline follows a multi-stage approach:
+
+1. **Data Preparation** - Download LiDAR tiles and street-view trajectory data
+2. **LiDAR Clipping** - Extract building-specific point clouds from tiles
+3. **Image Harvesting** - Identify optimal street-view panorama positions
+4. **View Generation** - Clip panoramas to building-focused views
+5. **Object Detection** - Detect architectural features (doors, windows, foundations)
+6. **Best View Selection** - Use SigLIP scoring to rank and select optimal views
+7. **3D Analysis** - Project point clouds and extract ground elevations
+8. **Height Estimation** - Calculate First Floor Heights (FFH)
+9. **Validation** - Compare against ground truth measurements
 
 ## Setup
 
@@ -102,19 +130,112 @@ fh run 1 2a 2b 3 4a 4b -r wagga
 fh run 1 2a 2b 3 4a 4b --screen
 ```
 
-### Available Stages
+### Available Pipeline Stages
 
-- **Stage 0**: `fh download-data` - Download required AWS data files
-- **Stage 1**: `fh 1` - Clip LiDAR tiles to residential footprints
-- **Stage 2a**: `fh 2a` - Harvest candidate panoramas from Street View
-- **Stage 2b**: `fh 2b` - Download panorama images
-- **Stage 3**: `fh 3` - Clip panoramas to building views
-- **Stage 4a**: `fh 4a` - Run object detection on clipped panoramas
-- **Stage 4b**: `fh 4b` - Select best view with SigLIP occlusion scoring
-- **Stage 5**: `fh 5` - Project point clouds to facade rasters
-- **Stage 6**: `fh 6` - Extract ground elevation from clipped LiDAR
-- **Stage 7**: `fh 7` - Estimate First Floor Heights (FFH)
-- **Stage 8**: `fh 8` - Validate results against ground truth
+| Stage | Command | Description |
+|-------|---------|-------------|
+| **0** | `fh download-data` | Download required AWS data files |
+| **1** | `fh 1` | Clip LiDAR tiles to residential footprints |
+| **2a** | `fh 2a` | Harvest candidate panoramas from Street View |
+| **2b** | `fh 2b` | Download panorama images |
+| **3** | `fh 3` | Clip panoramas to building views |
+| **4a** | `fh 4a` | Run object detection on clipped panoramas |
+| **4b** | `fh 4b` | Select best view with SigLIP occlusion scoring |
+| **5** | `fh 5` | Project point clouds to facade rasters |
+| **6** | `fh 6` | Extract ground elevation from clipped LiDAR |
+| **7** | `fh 7` | Estimate First Floor Heights (FFH) |
+| **8** | `fh 8` | Validate results against ground truth |
+
+## LiDAR Quality Assurance
+
+The pipeline includes a comprehensive LiDAR QA module to detect and report quality issues in point cloud data.
+
+### Running QA Checks
+
+```bash
+# Run QA on LiDAR tiles in a directory
+fh qa run /path/to/lidar/tiles -o /path/to/output
+
+# Run QA on specific region's LiDAR data
+fh qa run -r wagga
+
+# Run QA on multiple directories
+fh qa run dir1 dir2 dir3 -o /path/to/output
+
+# Specify file pattern and workers
+fh qa run /path/to/tiles --pattern "*.laz" --workers 32
+```
+
+### QA Commands
+
+```bash
+# View QA summary for a region or report
+fh qa summary                    # Summary of all reports
+fh qa summary -r wagga          # Summary for specific region
+fh qa summary /path/to/report.parquet  # Summary of specific report
+
+# List tiles with specific issues
+fh qa issues /path/to/report.parquet             # All issues
+fh qa issues /path/to/report.parquet -s error    # Only error severity
+fh qa issues /path/to/report.parquet -s critical # Only critical issues
+fh qa issues /path/to/report.parquet -t striping # Specific issue type
+```
+
+### QA Checks Performed
+
+The QA module checks for:
+- **Geometric Issues**: Striping, misalignment, density variations, data voids
+- **Noise & Outliers**: Statistical outliers, isolated points, weather noise
+- **Classification Issues**: Misclassification, unclassified points, classification noise
+- **Sensor Artifacts**: Edge artifacts, blind spots, ghosting, blooming
+
+## LiDAR Viewer
+
+The pipeline includes an interactive 3D web-based viewer for visualizing clipped LiDAR point clouds and validating floor height estimates.
+
+![LiDAR Point Cloud Viewer Screenshot](docs/images/viewer-screenshot.png)
+*Interactive 3D LiDAR viewer showing building point clouds with measurement tools*
+
+### Features
+- Interactive 3D visualization of clipped building point clouds
+- Browse processed clips by region with metadata
+- Measuring tools for validating First Floor Height (FFH) estimates  
+- Ground truth data creation and validation interface
+
+### Running the Viewer
+
+```bash
+# Launch the viewer (opens in browser)
+fh viewer launch
+
+# View a specific clip by ID
+fh viewer launch 57238_GANSW706146768
+
+# View clips from a specific region
+fh viewer launch --region tweed
+
+# Run on a different port
+fh viewer launch --port 8080
+
+# Run without opening browser
+fh viewer launch --no-open
+
+# Run in development mode
+fh viewer launch --dev
+```
+
+### Requirements
+
+- Node.js v16 or later must be installed
+- The viewer runs a local web server (API on port 8000, frontend on port 3000 by default)
+
+### Viewer Features
+
+- Interactive 3D visualization of clipped building point clouds
+- Browse through processed clips by region
+- View metadata and statistics for each clip
+- Measuring tool for validating First Floor Height (FFH) estimates
+- Assists in creating ground truth data for model validation
 
 ### Other Commands
 
