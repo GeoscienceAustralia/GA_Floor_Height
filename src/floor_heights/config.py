@@ -36,6 +36,7 @@ class RegionConfig:
     crs_source: int = 7844
     tile_index_path: str | None = None
     lidar_prefix: str | None = None
+    trajectory_path: str | None = None
 
     @property
     def crs_epsg(self) -> str:
@@ -262,6 +263,7 @@ class PipelineConfig:
                     bbox=BoundingBox(**reg_cfg["bbox"]),
                     tile_index_path=reg_cfg.get("tile_index"),
                     lidar_prefix=reg_cfg.get("lidar_prefix"),
+                    trajectory_path=reg_cfg.get("trajectory"),
                 )
 
         return cls(

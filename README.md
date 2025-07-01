@@ -1,6 +1,5 @@
 # GA Floor Height Pipeline
 
-
 ## Overview
 
 This pipeline combines computer vision and LiDAR analysis to automatically estimate building first floor heights. The system processes street-view imagery to detect building features, then correlates this with LiDAR point cloud data to calculate accurate first floor height measurements.
@@ -21,14 +20,14 @@ This pipeline combines computer vision and LiDAR analysis to automatically estim
 The pipeline follows a multi-stage approach:
 
 1. **Data Preparation** - Download LiDAR tiles and street-view trajectory data
-2. **LiDAR Clipping** - Extract building-specific point clouds from tiles
-3. **Image Harvesting** - Identify optimal street-view panorama positions
-4. **View Generation** - Clip panoramas to building-focused views
-5. **Object Detection** - Detect architectural features (doors, windows, foundations)
-6. **Best View Selection** - Use SigLIP scoring to rank and select optimal views
-7. **3D Analysis** - Project point clouds and extract ground elevations
-8. **Height Estimation** - Calculate First Floor Heights (FFH)
-9. **Validation** - Compare against ground truth measurements
+1. **LiDAR Clipping** - Extract building-specific point clouds from tiles
+1. **Image Harvesting** - Identify optimal street-view panorama positions
+1. **View Generation** - Clip panoramas to building-focused views
+1. **Object Detection** - Detect architectural features (doors, windows, foundations)
+1. **Best View Selection** - Use SigLIP scoring to rank and select optimal views
+1. **3D Analysis** - Project point clouds and extract ground elevations
+1. **Height Estimation** - Calculate First Floor Heights (FFH)
+1. **Validation** - Compare against ground truth measurements
 
 ## Setup
 
@@ -41,6 +40,7 @@ Run the setup script to install dependencies:
 ```
 
 This will:
+
 - Create a conda environment with required packages
 - Install the floor_heights package in development mode
 - Set up pre-commit hooks
@@ -73,6 +73,7 @@ fh db pipeline
 ```
 
 This will:
+
 - Convert raw spatial data to GeoParquet format
 - Load data into DuckDB database
 - Create necessary tables and indexes
@@ -93,10 +94,12 @@ fh download-data --dry-run
 ```
 
 This downloads:
+
 - Trajectory files (FramePosOptimised CSV files)
 - Tile index shapefiles (.shp, .shx, .dbf, .prj, .cpg files)
 
 Files are saved to:
+
 - `data/raw/{region}/FramePosOptimised-{region}-rev2.csv`
 - `data/raw/{region}/tileset/*.shp` (and related files)
 
@@ -132,19 +135,19 @@ fh run 1 2a 2b 3 4a 4b --screen
 
 ### Available Pipeline Stages
 
-| Stage | Command | Description |
-|-------|---------|-------------|
-| **0** | `fh download-data` | Download required AWS data files |
-| **1** | `fh 1` | Clip LiDAR tiles to residential footprints |
-| **2a** | `fh 2a` | Harvest candidate panoramas from Street View |
-| **2b** | `fh 2b` | Download panorama images |
-| **3** | `fh 3` | Clip panoramas to building views |
-| **4a** | `fh 4a` | Run object detection on clipped panoramas |
-| **4b** | `fh 4b` | Select best view with SigLIP occlusion scoring |
-| **5** | `fh 5` | Project point clouds to facade rasters |
-| **6** | `fh 6` | Extract ground elevation from clipped LiDAR |
-| **7** | `fh 7` | Estimate First Floor Heights (FFH) |
-| **8** | `fh 8` | Validate results against ground truth |
+| Stage  | Command            | Description                                    |
+| ------ | ------------------ | ---------------------------------------------- |
+| **0**  | `fh download-data` | Download required AWS data files               |
+| **1**  | `fh 1`             | Clip LiDAR tiles to residential footprints     |
+| **2a** | `fh 2a`            | Harvest candidate panoramas from Street View   |
+| **2b** | `fh 2b`            | Download panorama images                       |
+| **3**  | `fh 3`             | Clip panoramas to building views               |
+| **4a** | `fh 4a`            | Run object detection on clipped panoramas      |
+| **4b** | `fh 4b`            | Select best view with SigLIP occlusion scoring |
+| **5**  | `fh 5`             | Project point clouds to facade rasters         |
+| **6**  | `fh 6`             | Extract ground elevation from clipped LiDAR    |
+| **7**  | `fh 7`             | Estimate First Floor Heights (FFH)             |
+| **8**  | `fh 8`             | Validate results against ground truth          |
 
 ## LiDAR Quality Assurance
 
@@ -184,6 +187,7 @@ fh qa issues /path/to/report.parquet -t striping # Specific issue type
 ### QA Checks Performed
 
 The QA module checks for:
+
 - **Geometric Issues**: Striping, misalignment, density variations, data voids
 - **Noise & Outliers**: Statistical outliers, isolated points, weather noise
 - **Classification Issues**: Misclassification, unclassified points, classification noise
@@ -197,6 +201,7 @@ The pipeline includes an interactive 3D web-based viewer for visualizing clipped
 *Interactive 3D LiDAR viewer showing building point clouds with measurement tools*
 
 ### Features
+
 - Interactive 3D visualization of clipped building point clouds
 - Browse processed clips by region with metadata
 - Measuring tools for validating First Floor Height (FFH) estimates
@@ -267,12 +272,14 @@ fh yolo find-rare   # Find high-confidence examples of rare classes
 ## Regions
 
 The pipeline supports three regions:
+
 - `wagga` - Wagga Wagga
 - `tweed` - Tweed Heads
 - `launceston` - Launceston
 
 ## Requirements
--  appropriate credentials for AWS
+
+- appropriate credentials for AWS
 - ~4TB disk space for data and outputs
 
 ## Docker
