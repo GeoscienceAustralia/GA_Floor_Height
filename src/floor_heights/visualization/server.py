@@ -172,18 +172,24 @@ async def get_initial_state() -> dict[str, Any]:
 
 
 @app.get("/api/annotation/images")
-async def get_annotation_images() -> dict[str, Any]:
+async def get_annotation_images() -> JSONResponse:
     """Get list of all images in the dataset."""
     dataset_root = Path(__file__).resolve().parents[3] / "data" / "datasets"
     images_dir = dataset_root / "images"
 
     if not images_dir.exists():
         logger.warning(f"Images directory not found: {images_dir}")
-        return {"images": [], "total": 0}
+        return JSONResponse(
+            content={"images": [], "total": 0},
+            headers={"Cache-Control": "public, max-age=300"},
+        )
 
     image_files = sorted([f.name for f in images_dir.iterdir() if f.suffix.lower() in [".jpg", ".jpeg", ".png"]])
 
-    return {"images": image_files, "total": len(image_files)}
+    return JSONResponse(
+        content={"images": image_files, "total": len(image_files)},
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @app.get("/api/annotation/coco")
