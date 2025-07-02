@@ -19,15 +19,15 @@ This pipeline combines computer vision and LiDAR analysis to automatically estim
 
 The pipeline follows a multi-stage approach:
 
-1. **Data Preparation** - Download LiDAR tiles and street-view trajectory data
-1. **LiDAR Clipping** - Extract building-specific point clouds from tiles
-1. **Image Harvesting** - Identify optimal street-view panorama positions
-1. **View Generation** - Clip panoramas to building-focused views
-1. **Object Detection** - Detect architectural features (doors, windows, foundations)
-1. **Best View Selection** - Use SigLIP scoring to rank and select optimal views
-1. **3D Analysis** - Project point clouds and extract ground elevations
-1. **Height Estimation** - Calculate First Floor Heights (FFH)
-1. **Validation** - Compare against ground truth measurements
+1. **Data Preparation** (`fh download-data`) - Download LiDAR tiles and street-view trajectory data
+1. **LiDAR Clipping** (`fh 1`) - Extract building-specific point clouds from tiles
+1. **Image Harvesting** (`fh 2a`) - Identify optimal street-view panorama positions
+1. **View Generation** (`fh 2b`, `fh 3`) - Download and clip panoramas to building-focused views
+1. **Object Detection** (`fh 4a`) - Detect architectural features (doors, windows, foundations)
+1. **Best View Selection** (`fh 4b`) - Use SigLIP scoring to rank and select optimal views
+1. **3D Analysis** (`fh 5`, `fh 6`) - Project point clouds and extract ground elevations
+1. **Height Estimation** (`fh 7`) - Calculate First Floor Heights (FFH)
+1. **Validation** (`fh 8`) - Compare against ground truth measurements
 
 ## Setup
 
@@ -241,6 +241,17 @@ fh viewer launch --dev
 - View metadata and statistics for each clip
 - Measuring tool for validating First Floor Height (FFH) estimates
 - Assists in creating ground truth data for model validation
+
+## Annotation Viewer
+
+View and analyze COCO format segmentation masks for building feature annotations.
+
+```bash
+# Launch annotation viewer
+fh viewer launch --mode annotate
+```
+
+Expects COCO data in `data/datasets/`
 
 ### Other Commands
 
