@@ -111,7 +111,26 @@ class ObjectDetectionConfig:
     batch_size: int = 1000
     items_per_batch: int = 50
     workers_per_gpu: int = 8
-    visualization_quality: int = 95
+    visualization_quality: int = 100
+
+    # Training configuration
+    training_model: str = "yolov8x-seg.pt"  # Segmentation base model
+    training_epochs: int = 100
+    training_batch: int = -1  # Auto batch size
+    training_imgsz: int = 1280  # Higher res for better facade detail
+    training_patience: int = 50  # Early stopping
+
+    # Augmentations suitable for street view facades
+    hsv_h: float = 0.015  # Slight hue variation (lighting conditions)
+    hsv_s: float = 0.7  # Saturation (weather conditions)
+    hsv_v: float = 0.4  # Brightness (time of day)
+    translate: float = 0.1  # Small translations (camera position variance)
+    scale: float = 0.5  # Increased scale for better distance variation
+    fliplr: float = 0.5  # Horizontal flip (buildings on either side)
+    degrees: float = 0.0  # No rotation (street view is level)
+    flipud: float = 0.0  # No vertical flip
+    mosaic: float = 0.0  # No mosaic (we want clear building views)
+    copy_paste: float = 0.1  # Copy-paste augmentation for small dataset
 
 
 @dataclass(frozen=True)

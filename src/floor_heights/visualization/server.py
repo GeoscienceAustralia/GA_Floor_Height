@@ -23,7 +23,11 @@ app.add_middleware(
 )
 
 
-OUTPUT_BASE = Path("/home/ubuntu/GA-floor-height/output")
+class CONFIG:
+    output_root = Path(__file__).resolve().parents[3] / "output"
+
+
+OUTPUT_BASE = CONFIG.output_root
 REGIONS = ["wagga", "launceston", "tweed"]
 
 
@@ -43,7 +47,7 @@ async def check_file_exists(region: str, clip_id: str) -> dict[str, Any]:
     main_id = clip_parts[0]
     gnaf_id = clip_parts[-1] if len(clip_parts) > 1 else None
 
-    for las_file in region_path.glob("*.las"):
+    for las_file in list(region_path.glob("*.las")) + list(region_path.glob("*.laz")):
         filename = las_file.name
 
         has_main_id = main_id in filename
@@ -68,7 +72,7 @@ async def get_files_list(region: str) -> dict[str, Any]:
     if not region_path.exists():
         return {"files": [], "total": 0}
 
-    las_files = sorted(region_path.glob("*.las"), key=lambda x: x.name)
+    las_files = sorted(list(region_path.glob("*.las")) + list(region_path.glob("*.laz")), key=lambda x: x.name)
 
     files_list = [f.name for f in las_files]
 

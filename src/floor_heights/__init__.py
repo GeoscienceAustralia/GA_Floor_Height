@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+
+# Set YOLO/Ultralytics directories before any imports
+_project_root = Path(__file__).parent.parent.parent
+_cache_dir = _project_root / "weights" / ".cache"
+_cache_dir.mkdir(parents=True, exist_ok=True)
+
+os.environ["YOLO_CONFIG_DIR"] = str(_cache_dir)
+os.environ["ULTRALYTICS_CONFIG_DIR"] = str(_cache_dir)
+os.environ["ULTRALYTICS_WEIGHTS_DIR"] = str(_cache_dir)
 
 
 def __getattr__(name):
