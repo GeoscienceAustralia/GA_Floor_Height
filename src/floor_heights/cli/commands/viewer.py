@@ -56,6 +56,7 @@ def launch(
     port: int = typer.Option(8000, "--port", "-p", help="Port for the API server"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser automatically"),
     dev: bool = typer.Option(False, "--dev", help="Run in development mode"),
+    mode: str = typer.Option("lidar", "--mode", "-m", help="Viewer mode: 'lidar' or 'annotate'"),
 ):
     """Launch the interactive LiDAR point cloud viewer.
 
@@ -63,6 +64,7 @@ def launch(
         fh viewer launch
         fh viewer launch 57238_GANSW706146768
         fh viewer launch --region tweed
+        fh viewer launch --mode annotate
     """
 
     if not check_node_installed():
@@ -99,9 +101,10 @@ def launch(
     except Exception:
         pass
 
+    viewer_title = "Annotation Viewer" if mode == "annotate" else "LiDAR Point Cloud Viewer"
     console.print(
         Panel(
-            f"[green]Starting LiDAR Point Cloud Viewer[/green]\n\n"
+            f"[green]Starting {viewer_title}[/green]\n\n"
             f"  • API Server: http://localhost:{port}\n"
             f"  • Web Interface: http://localhost:3000\n\n"
             f"[yellow]Press Ctrl+C to stop[/yellow]",
@@ -133,7 +136,10 @@ def launch(
 
         if open_browser:
             time.sleep(3)
-            webbrowser.open("http://localhost:3000")
+            url = "http://localhost:3000"
+            if mode == "annotate":
+                url += "?mode=annotate"
+            webbrowser.open(url)
 
         frontend_process.wait()
 

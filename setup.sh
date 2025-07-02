@@ -60,6 +60,17 @@ nvm current
 npm -v
 
 echo ""
+echo "Installing visualization module dependencies..."
+cd src/floor_heights/visualization
+if [ -f package.json ]; then
+    npm install
+    echo "✓ Visualization dependencies installed"
+else
+    echo "⚠️  Visualization package.json not found, skipping npm install"
+fi
+cd ../../..
+
+echo ""
 echo "Configuring pre-commit..."
 pre-commit install
 pre-commit install --hook-type commit-msg

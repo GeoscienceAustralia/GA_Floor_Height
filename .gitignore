@@ -35,7 +35,6 @@ __pycache__/
 # Data Science specific
 # Datasets
 *.tsv
-*.json
 *.jsonl
 *.parquet
 *.h5
