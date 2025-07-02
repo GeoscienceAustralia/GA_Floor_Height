@@ -9,6 +9,7 @@ launceston:
     ymax: -41.405697
   tile_index: 03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.shp
   lidar_prefix: 03_Launceston/02_MLSPointCloud/rev2/
+  trajectory: 03_Launceston/03_Ancillary/02_TrajectoryFiles/FramePosOptimised-launceston-rev2.csv
 tweed:
   id: "3"
   crs: 7856
@@ -18,8 +19,9 @@ tweed:
     ymin: -28.221012
     xmax: 153.550214
     ymax: -28.171330
-  tile_index: 02_TweedHeads/03_Ancillary/01_TileIndex/rev1/48068_Tweed_Heads_TileSet.shp
+  tile_index: 02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.shp
   lidar_prefix: 02_TweedHeads/02_MLSPointCloud/rev2/
+  trajectory: 02_TweedHeads/03_Ancillary/02_TrajectoryFiles/FramePosOptimised-tweed-heads-rev2.csv
 wagga:
   id: "1"
   crs: 7855
@@ -31,3 +33,4 @@ wagga:
     ymax: -35.087395
   tile_index: 01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.shp
   lidar_prefix: 01_WaggaWagga/02_MLSPointCloud/rev2/
+  trajectory: 01_WaggaWagga/03_Ancillary/02_TrajectoryFiles/rev2/FramePosOptimised-wagga-wagga-rev2.csv

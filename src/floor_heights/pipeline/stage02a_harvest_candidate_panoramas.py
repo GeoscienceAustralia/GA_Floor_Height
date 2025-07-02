@@ -82,7 +82,6 @@ def sector_polygon(
     ang_min: float,
     ang_max: float,
     radius: float,
-    n_pts: int = 16,
 ) -> sg.Polygon:
     """Generate viewing sector polygon for ray search."""
 

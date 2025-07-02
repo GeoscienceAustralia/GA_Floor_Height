@@ -47,6 +47,7 @@ dependencies = [
   "laspy>=2.5.0",
   "fastapi>=0.104.0",
   "uvicorn>=0.24.0",
+  "lazrs>=0.7.0",
 ]
 
 [project.optional-dependencies]
@@ -138,3 +139,8 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "regression.*"
 ignore_errors = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "scm"
+tag_format = "v$version"

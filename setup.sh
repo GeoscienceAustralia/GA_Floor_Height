@@ -39,7 +39,7 @@ fi
 source ~/miniconda3/bin/activate floor-heights
 
 echo "Installing project, pre-commit, and detect-secrets..."
-uv pip install --python $(which python) -e . "pre-commit" "detect-secrets"
+uv pip install --python "$(which python)" -e . "pre-commit" "detect-secrets" "commitizen"
 
 if ! command -v git-lfs &> /dev/null; then
     echo "Installing Git LFS..."
@@ -52,9 +52,28 @@ fi
 
 git lfs pull
 
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+. "$HOME/.nvm/nvm.sh"
+nvm install 24
+node -v
+nvm current
+npm -v
+
+echo ""
+echo "Installing visualization module dependencies..."
+cd src/floor_heights/visualization
+if [ -f package.json ]; then
+    npm install
+    echo "✓ Visualization dependencies installed"
+else
+    echo "⚠️  Visualization package.json not found, skipping npm install"
+fi
+cd ../../..
+
 echo ""
 echo "Configuring pre-commit..."
 pre-commit install
+pre-commit install --hook-type commit-msg
 
 if [ ! -f .secrets.baseline ]; then
     echo "Creating detect-secrets baseline..."

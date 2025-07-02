@@ -1,5 +1,9 @@
 # See https://pre-commit.com for details
 
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+
 repos:
   # ---------- House-keeping ----------
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -9,13 +13,17 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+      - id: check-executables-have-shebangs
+      - id: check-case-conflict
+      - id: no-commit-to-branch
+        args: ['--branch', 'main', '--branch', 'master']
 
   # ---------- Security ----------
   - repo: https://github.com/pycqa/bandit
     rev: '1.8.5'
     hooks:
       - id: bandit
-        args: ['-s', 'B101']           # allow `assert` in tests
+        args: ['-s', 'B101,B404,B603,B607,B110,B311,B614,B104,B608']  # Skip false positives
         files: '^src/.*\.py$'
         exclude: '^(tests/|data/|output/|\.venv/|\.cache/)'
 
@@ -51,4 +59,84 @@ repos:
     rev: v3.1.0
     hooks:
       - id: prettier
-        files: '\\.(js|jsx|ts|tsx|json|css|scss|md|yaml|yml)$'
+        files: '\\.(js|jsx|ts|tsx|json|css|scss|yaml|yml)$'
+        exclude: '\\.(md)$'  # Exclude markdown as we use mdformat
+
+  # ---------- Configuration validation ----------
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.23
+    hooks:
+      - id: validate-pyproject
+        name: "🔧 config · Validate pyproject.toml"
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.30.0
+    hooks:
+      - id: check-github-workflows
+        name: "🔧 config · Validate GitHub Actions"
+      - id: check-jsonschema
+        name: "🔧 config · Validate JSON/YAML/TOML configs"
+        files: '\\.(json|ya?ml|toml)$'
+        exclude: '^(poetry\.lock|package-lock\.json|pyproject\.toml)$'
+
+  # ---------- Markdown ----------
+  - repo: https://github.com/hukkin/mdformat
+    rev: 0.7.21
+    hooks:
+      - id: mdformat
+        name: "📝 markdown · Format markdown"
+        additional_dependencies:
+          - mdformat-gfm          # GitHub-Flavored Markdown support
+          - mdformat-ruff         # Python code formatting
+          - mdformat-frontmatter  # YAML frontmatter support
+          - ruff                  # Required for mdformat-ruff
+
+  # ---------- Shell scripts ----------
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        name: "🐚 shell · Lint shell scripts"
+        args: ['-S', 'error']  # Only report errors, not warnings
+
+  - repo: https://github.com/openstack/bashate
+    rev: 2.1.1
+    hooks:
+      - id: bashate
+        name: "🐚 shell · Check shell script code style"
+
+  # ---------- Jupyter notebooks ----------
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.9.1
+    hooks:
+      - id: nbqa
+        entry: nbqa mdformat
+        name: "📓 notebook · Format markdown cells"
+        args: ["--nbqa-md"]
+        types: [jupyter]
+        additional_dependencies:
+          - mdformat
+          - mdformat-gfm
+          - mdformat-ruff
+          - mdformat-frontmatter
+          - ruff
+      - id: nbqa-mypy
+        name: "📓 notebook · Type-check cells"
+        types: [jupyter]
+
+  # ---------- Commit message standards ----------
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.1.0
+    hooks:
+      - id: commitizen
+        name: "🌳 git · Validate commit message"
+        stages: [commit-msg]
+
+  # ---------- Code quality ----------
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.14
+    hooks:
+      - id: vulture
+        name: "🦅 python · Find dead code"
+        args: ['--min-confidence', '80', 'src/']
+        pass_filenames: false

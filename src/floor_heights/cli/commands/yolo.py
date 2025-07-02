@@ -312,4 +312,90 @@ def create_yolo_app() -> typer.Typer:
                 confidence_threshold=confidence,
             )
 
+    @app.command("train", help="Fine-tune YOLO segmentation model on building facades")
+    def train(
+        task: str = typer.Option("segment", "--task", "-t", help="Task type: detect or segment"),
+        epochs: int = typer.Option(100, "--epochs", "-e", help="Number of training epochs"),
+        batch: int = typer.Option(-1, "--batch", "-b", help="Batch size (-1 for auto)"),
+        resume: bool = typer.Option(False, "--resume", "-r", help="Resume from checkpoint"),
+        name: str = typer.Option("facade_seg", "--name", "-n", help="Experiment name"),
+        prepare_only: bool = typer.Option(False, "--prepare-only", help="Only prepare dataset, don't train"),
+        pretrained: Path | None = typer.Option(
+            None, "--pretrained", "-p", help="Path to pretrained model (.pt or .ckpt)"
+        ),
+    ) -> None:
+        """Fine-tune YOLOv8x-seg on the floor heights dataset.
+
+        This command prepares the dataset in YOLO format and trains a model
+        for building facade object detection/segmentation.
+
+        Examples:
+            # Train segmentation model (default)
+            fh yolo train --epochs 100
+
+            # Train detection model
+            fh yolo train --task detect --epochs 100
+
+            # Resume training
+            fh yolo train --resume
+
+            # Train with pretrained model
+            fh yolo train --pretrained data/pretrained/model.pt --epochs 500
+
+            # Only prepare dataset
+            fh yolo train --prepare-only
+        """
+        from floor_heights.training import prepare_yolo_dataset, train_model
+
+        dataset_root = CONFIG.project_root / "data" / "datasets"
+        annotations_path = dataset_root / "annotations" / "annotations.json"
+        splits_path = dataset_root / "annotations" / "splits.json"
+        images_dir = dataset_root / "images"
+        output_dir = dataset_root / "yolo"
+
+        if not annotations_path.exists():
+            console.print(f"[red]Annotations not found: {annotations_path}[/red]")
+            raise typer.Exit(1)
+
+        if not splits_path.exists():
+            console.print(f"[red]Splits file not found: {splits_path}[/red]")
+            raise typer.Exit(1)
+
+        if not images_dir.exists():
+            console.print(f"[red]Images directory not found: {images_dir}[/red]")
+            raise typer.Exit(1)
+
+        console.print(f"\n[bold]Preparing {task} dataset[/bold]")
+        data_yaml = prepare_yolo_dataset(
+            annotations_path=annotations_path,
+            splits_path=splits_path,
+            images_dir=images_dir,
+            output_dir=output_dir,
+            task=task,
+        )
+
+        if prepare_only:
+            console.print(f"\n[green]Dataset prepared at: {output_dir}[/green]")
+            console.print(f"[green]Data config: {data_yaml}[/green]")
+            return
+
+        console.print(f"\n[bold]Starting {task} training[/bold]")
+        try:
+            best_model = train_model(
+                data_yaml=data_yaml,
+                epochs=epochs,
+                batch=batch,
+                task=task,
+                resume=resume,
+                name=name,
+                pretrained=pretrained,
+            )
+            console.print(f"\n[green]Training completed! Model saved to: {best_model}[/green]")
+            console.print("\n[dim]To use the trained model in the pipeline:[/dim]")
+            console.print("  fh 4a  # Will automatically use the new model")
+
+        except Exception as e:
+            console.print(f"\n[red]Training failed: {e}[/red]")
+            raise typer.Exit(1) from e
+
     return app

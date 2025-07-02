@@ -1,5 +1,7 @@
 # Project specific directories to ignore
 docs/
+# YOLO models that might download to root
+/*.pt
 # Exception for docs/images directory (for README assets)
 !docs/images/
 inference_clean/
@@ -33,7 +35,6 @@ __pycache__/
 # Data Science specific
 # Datasets
 *.tsv
-*.json
 *.jsonl
 *.parquet
 *.h5
@@ -70,6 +71,8 @@ __pycache__/
 checkpoints/
 models/
 saved_models/
+weights/.cache/
+runs/
 
 # Logs
 logs/

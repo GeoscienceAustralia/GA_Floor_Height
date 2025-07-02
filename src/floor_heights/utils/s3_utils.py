@@ -1,48 +1,22 @@
-#!/usr/bin/env python
 """Download required AWS data files for the floor heights pipeline."""
 
 from __future__ import annotations
 
-import subprocess
+import os
 from pathlib import Path
 
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+from dotenv import load_dotenv
 from loguru import logger
 
-S3_BUCKET = "s3://frontiersi-p127-floor-height-woolpert/"
+from floor_heights.config import CONFIG
 
+load_dotenv()
 
-AWS_FILES: dict[str, dict[str, list[str]]] = {
-    "wagga": {
-        "trajectory": ["01_WaggaWagga/03_Ancillary/02_TrajectoryFiles/rev2/FramePosOptimised-wagga-wagga-rev2.csv"],
-        "tileset": [
-            "01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.shp",
-            "01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.shx",
-            "01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.dbf",
-            "01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.prj",
-            "01_WaggaWagga/03_Ancillary/01_TileIndex/rev1/48068_Wagga_Wagga_TileSet.cpg",
-        ],
-    },
-    "tweed": {
-        "trajectory": ["02_TweedHeads/03_Ancillary/02_TrajectoryFiles/FramePosOptimised-tweed-heads-rev2.csv"],
-        "tileset": [
-            "02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.shp",
-            "02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.shx",
-            "02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.dbf",
-            "02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.prj",
-            "02_TweedHeads/03_Ancillary/01_TileIndex/48068_Tweed_Heads_TileSet.cpg",
-        ],
-    },
-    "launceston": {
-        "trajectory": ["03_Launceston/03_Ancillary/02_TrajectoryFiles/FramePosOptimised-launceston-rev2.csv"],
-        "tileset": [
-            "03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.shp",
-            "03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.shx",
-            "03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.dbf",
-            "03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.prj",
-            "03_Launceston/03_Ancillary/01_TileIndex/rev1/48068_Launceston_TileSet.cpg",
-        ],
-    },
-}
+S3_BUCKET_NAME = "frontiersi-p127-floor-height-woolpert"
+
+SHAPEFILE_EXTENSIONS = [".shp", ".shx", ".dbf", ".prj", ".cpg"]
 
 
 def ensure_data_directories() -> Path:
@@ -50,7 +24,7 @@ def ensure_data_directories() -> Path:
     data_root = Path("data/raw")
     data_root.mkdir(parents=True, exist_ok=True)
 
-    for region in AWS_FILES:
+    for region in CONFIG.regions:
         region_dir = data_root / region
         region_dir.mkdir(exist_ok=True)
         (region_dir / "tileset").mkdir(exist_ok=True)
@@ -68,8 +42,6 @@ def download_file(s3_path: str, local_path: Path) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    s3_url = f"{S3_BUCKET}{s3_path}"
-
     if local_path.exists():
         logger.info(f"File already exists: {local_path}")
         return True
@@ -77,16 +49,32 @@ def download_file(s3_path: str, local_path: Path) -> bool:
     logger.info(f"Downloading: {s3_path} -> {local_path}")
 
     try:
-        cmd = ["aws", "s3", "cp", s3_url, str(local_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2"),
+        )
 
-        if result.returncode != 0:
-            logger.error(f"Failed to download {s3_path}: {result.stderr}")
-            return False
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+        s3_client.download_file(S3_BUCKET_NAME, s3_path, str(local_path))
 
         logger.success(f"Downloaded: {local_path.name}")
         return True
 
+    except NoCredentialsError:
+        logger.error("AWS credentials not found. Please check your .env file.")
+        return False
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "403":
+            logger.error(f"Access denied to {s3_path}. Check your AWS credentials and permissions.")
+        elif error_code == "404":
+            logger.error(f"File not found: {s3_path}")
+        else:
+            logger.error(f"Failed to download {s3_path}: {e}")
+        return False
     except Exception as e:
         logger.error(f"Error downloading {s3_path}: {e}")
         return False
@@ -102,25 +90,31 @@ def download_region_data(region: str, data_root: Path) -> bool:
     Returns:
         True if all downloads successful, False otherwise
     """
-    if region not in AWS_FILES:
+    if region not in CONFIG.regions:
         logger.error(f"Unknown region: {region}")
         return False
 
-    region_files = AWS_FILES[region]
+    region_config = CONFIG.regions[region]
     region_dir = data_root / region
     success = True
 
-    for trajectory_file in region_files["trajectory"]:
-        filename = Path(trajectory_file).name
+    if region_config.trajectory_path:
+        trajectory_path = region_config.trajectory_path
+        filename = Path(trajectory_path).name
         local_path = region_dir / filename
-        if not download_file(trajectory_file, local_path):
+        if not download_file(trajectory_path, local_path):
             success = False
 
-    for tileset_file in region_files["tileset"]:
-        filename = Path(tileset_file).name
-        local_path = region_dir / "tileset" / filename
-        if not download_file(tileset_file, local_path):
-            success = False
+    if region_config.tile_index_path:
+        tile_index_path = Path(region_config.tile_index_path)
+        base_name = tile_index_path.stem
+
+        for ext in SHAPEFILE_EXTENSIONS:
+            s3_path = str(tile_index_path.with_suffix(ext))
+            filename = base_name + ext
+            local_path = region_dir / "tileset" / filename
+            if not download_file(s3_path, local_path):
+                success = False
 
     return success
 
@@ -142,19 +136,22 @@ def download_aws_data(
 
     data_root = ensure_data_directories()
 
-    regions_to_process = [region] if region else list(AWS_FILES.keys())
+    regions_to_process = [region] if region else list(CONFIG.regions.keys())
 
     total_files = 0
     for r in regions_to_process:
         logger.info(f"\nProcessing region: {r}")
 
         if dry_run:
-            region_files = AWS_FILES[r]
-            trajectory_count = len(region_files["trajectory"])
-            tileset_count = len(region_files["tileset"])
-            total_files += trajectory_count + tileset_count
-            logger.info(f"Would download {trajectory_count} trajectory file(s)")
-            logger.info(f"Would download {tileset_count} tileset file(s)")
+            region_config = CONFIG.regions[r]
+            files_count = 0
+            if region_config.trajectory_path:
+                files_count += 1
+                logger.info("Would download trajectory file")
+            if region_config.tile_index_path:
+                files_count += len(SHAPEFILE_EXTENSIONS)
+                logger.info(f"Would download {len(SHAPEFILE_EXTENSIONS)} tileset files")
+            total_files += files_count
             continue
 
         success = download_region_data(r, data_root)

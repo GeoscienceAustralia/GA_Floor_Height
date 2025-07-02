@@ -11,7 +11,16 @@ from .mappings import RESIDENTIAL_ZONES
 def load_from_parquet(db_path: Path = Path("data/floor_heights.duckdb")) -> None:
     conn = connect(db_path, read_only=False)
 
-    core_tables = ["regions", "buildings", "panoramas", "tilesets", "building_features"]
+    core_tables = [
+        "regions",
+        "buildings",
+        "panoramas",
+        "tilesets",
+        "building_features",
+        "building_features_unique",
+        "validation_labels",
+        "frontiersi_validation_labels",
+    ]
     existing_tables = conn.list_tables()
 
     for table in core_tables:
@@ -144,13 +153,6 @@ def create_unified_tables(conn, base_dir: Path) -> None:
 
     conn.raw_sql(buildings_sql)
 
-    if (base_dir / "building_features.parquet").exists():
-        conn.raw_sql(f"""
-            CREATE TABLE building_features AS
-            SELECT * FROM '{base_dir}/building_features.parquet'
-        """)
-        print("✓ Created building_features table with all columns")
-
     row_count = conn.table("buildings").count().execute()
     print(f"✓ Created buildings table with {row_count:,} rows")
 
@@ -160,10 +162,64 @@ def create_unified_tables(conn, base_dir: Path) -> None:
     for _, row in breakdown.iterrows():
         print(f"  - {row['region_name']}: {row['count']:,} buildings")
 
-    if "building_features" in conn.list_tables():
+    if (base_dir / "building_features_all.parquet").exists():
+        building_features_sql = f"""
+        CREATE TABLE building_features AS
+        WITH all_features AS (
+            SELECT * FROM '{base_dir}/building_features_all.parquet'
+        ),
+        features_filtered AS (
+            SELECT *
+            FROM all_features
+            WHERE land_use_zone IN ({", ".join([f"'{zone}'" for zone in RESIDENTIAL_ZONES])})
+        ),
+        features_with_region AS (
+            SELECT
+                f.*,
+                COALESCE(
+                    (SELECT r.id FROM regions r WHERE ST_Contains(r.geom, ST_Centroid(f.geom)) LIMIT 1),
+                    (SELECT r.id FROM regions r ORDER BY ST_Distance(ST_Centroid(f.geom), ST_Centroid(r.geom)) LIMIT 1)
+                ) as region_id,
+                COALESCE(
+                    (SELECT r.name FROM regions r WHERE ST_Contains(r.geom, ST_Centroid(f.geom)) LIMIT 1),
+                    (SELECT r.name FROM regions r ORDER BY ST_Distance(ST_Centroid(f.geom), ST_Centroid(r.geom)) LIMIT 1)
+                ) as region_name
+            FROM features_filtered f
+        )
+        SELECT * FROM features_with_region
+        """
+        conn.raw_sql(building_features_sql)
+
         features_count = conn.table("building_features").count().execute()
         features_cols = len(conn.table("building_features").columns)
-        print(f"\n✓ Building_features table: {features_count:,} rows, {features_cols} columns")
+        print(f"\n✓ Created building_features table: {features_count:,} rows, {features_cols} columns")
+
+        conn.raw_sql("""
+            CREATE TABLE building_features_unique AS
+            SELECT DISTINCT ON (building_id) *
+            FROM building_features
+            ORDER BY building_id, gnaf_id
+        """)
+        unique_count = conn.table("building_features_unique").count().execute()
+        print(f"✓ Created building_features_unique table: {unique_count:,} rows (deduplicated by building_id)")
+
+    if (base_dir / "validation_labels.parquet").exists():
+        conn.raw_sql(f"""
+            CREATE TABLE validation_labels AS
+            SELECT * FROM '{base_dir}/validation_labels.parquet'
+        """)
+        validation_count = conn.table("validation_labels").count().execute()
+        print(f"\n✓ Created validation_labels table: {validation_count:,} rows")
+
+    if (base_dir / "validation_frontiersi.parquet").exists():
+        conn.raw_sql(f"""
+            CREATE TABLE frontiersi_validation_labels AS
+            SELECT * FROM '{base_dir}/validation_frontiersi.parquet'
+        """)
+        frontiersi_count = conn.table("frontiersi_validation_labels").count().execute()
+        print(
+            f"✓ Created frontiersi_validation_labels table: {frontiersi_count:,} rows (from validation_frontiersi.parquet)"
+        )
 
 
 def convert_to_parquet() -> None:
@@ -202,20 +258,15 @@ def convert_to_parquet() -> None:
                     ROW_NUMBER() OVER (ORDER BY building_id, gnaf_id) AS id,
                     building_id,
                     gnaf_id,
-                    -- Split floor_height_m by source
                     CASE WHEN dataset = 'FrontierSI Validation' THEN floor_height_m ELSE NULL END as frontiersi_floor_height_m,
                     CASE WHEN dataset = 'NEXIS' THEN floor_height_m ELSE NULL END as nexis_floor_height_m,
                     CASE WHEN dataset = 'Council Validation' AND method = 'Surveyed' THEN floor_height_m ELSE NULL END as council_surveyed_floor_height_m,
                     CASE WHEN dataset = 'Council Validation' AND method = 'Step counting' THEN floor_height_m ELSE NULL END as council_step_floor_height_m,
-                    -- Keep other height columns based on actual data distribution
                     CASE WHEN dataset = 'FrontierSI Validation' THEN floor_absolute_height_m ELSE NULL END as frontiersi_floor_absolute_height_m,
-                    -- min/max building heights are present in all datasets
                     min_building_height_ahd,
                     max_building_height_ahd,
-                    -- floor_leve and ground_level are only in Council Validation data
                     CASE WHEN dataset = 'Council Validation' THEN floor_leve ELSE NULL END as council_floor_leve,
                     CASE WHEN dataset = 'Council Validation' THEN ground_level ELSE NULL END as council_ground_level,
-                    -- Keep metadata for tracking
                     dataset,
                     method
                 FROM ST_Read('{buildings_path}')
@@ -229,23 +280,40 @@ def convert_to_parquet() -> None:
 
     conn.raw_sql(f"""
         COPY (
+            SELECT DISTINCT ON (building_id)
+                ROW_NUMBER() OVER (ORDER BY building_id) AS id,
+                building_id,
+                gnaf_id,
+                floor_height_m,
+                floor_absolute_height_m,
+                min_building_height_ahd,
+                max_building_height_ahd
+            FROM ST_Read('{buildings_path}')
+            WHERE dataset = 'FrontierSI Validation'
+              AND floor_height_m IS NOT NULL
+            ORDER BY building_id, gnaf_id
+        )
+        TO '{processed}/validation_frontiersi.parquet' (FORMAT 'PARQUET')
+    """)
+    print("✓ Extracted FrontierSI validation data to validation_frontiersi.parquet (deduplicated by building_id)")
+
+    conn.raw_sql(f"""
+        COPY (
             SELECT
-                -- Generate deterministic unique ID using simple ROW_NUMBER
                 ROW_NUMBER() OVER (ORDER BY building_id, gnaf_id) AS id,
                 *
             FROM ST_Read('{buildings_path}')
-            WHERE dataset IS NULL OR dataset != 'FrontierSI Validation'
         )
-        TO '{processed}/building_features.parquet' (FORMAT 'PARQUET')
+        TO '{processed}/building_features_all.parquet' (FORMAT 'PARQUET')
     """)
     print(
-        "✓ Converted all_aoi_ffh_v5_3a2a2ee6e864.gpkg to building_features.parquet with deterministic IDs (excluding FrontierSI validation)"
+        "✓ Converted all_aoi_ffh_v5_3a2a2ee6e864.gpkg to building_features_all.parquet with deterministic IDs (including ALL records)"
     )
 
     conn.raw_sql(f"""
         COPY (
-            SELECT DISTINCT ON (building_id, gnaf_id)
-                ROW_NUMBER() OVER (ORDER BY building_id, gnaf_id) AS id,
+            SELECT DISTINCT ON (building_id)
+                ROW_NUMBER() OVER (ORDER BY building_id) AS id,
                 building_id,
                 gnaf_id,
                 gnaf_address,
@@ -258,7 +326,7 @@ def convert_to_parquet() -> None:
         )
         TO '{processed}/buildings.parquet' (FORMAT 'PARQUET')
     """)
-    print("✓ Created minimal buildings.parquet with essential columns and deterministic IDs")
+    print("✓ Created minimal buildings.parquet with essential columns (deduplicated by building_id)")
 
     regions = {
         "wagga": {
@@ -324,6 +392,13 @@ def convert_to_parquet() -> None:
             total = row[2]
             print(f"  - {dataset} ({method}): {total:,} records")
 
+    if (processed / "validation_frontiersi.parquet").exists():
+        frontiersi_count = conn.raw_sql(f"""
+            SELECT COUNT(DISTINCT building_id) as unique_buildings
+            FROM read_parquet('{processed}/validation_frontiersi.parquet')
+        """).fetchone()[0]
+        print(f"\n✓ FrontierSI validation buildings: {frontiersi_count} unique buildings")
+
 
 if __name__ == "__main__":
     import sys
@@ -362,7 +437,16 @@ Example:
         load_from_parquet(db_path)
 
         conn = connect(db_path, read_only=True)
-        tables_to_check = ["regions", "buildings", "panoramas", "tilesets", "building_features"]
+        tables_to_check = [
+            "regions",
+            "buildings",
+            "panoramas",
+            "tilesets",
+            "building_features",
+            "building_features_unique",
+            "validation_labels",
+            "frontiersi_validation_labels",
+        ]
         existing_tables = [t for t in tables_to_check if t in conn.list_tables()]
         print(f"\nCreated {len(existing_tables)} tables:")
         for table_name in existing_tables:
